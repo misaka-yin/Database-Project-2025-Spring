@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/misaka-yin/Database-Project-2025-Spring/issues"
   },
-  "homepage": "https://github.com/misaka-yin/Database-Project-2025-Spring#readme"
+  "homepage": "https://github.com/misaka-yin/Database-Project-2025-Spring#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "sqlite3": "^5.1.7"
+  }
 }
