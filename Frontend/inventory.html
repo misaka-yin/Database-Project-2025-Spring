@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="inventory">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link nav__link--active">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section inventory">
+      <h1 class="section__title">Book Inventory</h1>
+
+      <!-- Filters -->
+      <div class="inventory__filters">
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="Available">Available</option>
+          <option value="Not Available">Not Available</option>
+        </select>
+      </div>
+
+      <!-- Inventory Table -->
+      <table class="table" id="inventoryTable">
+        <thead>
+          <tr>
+            <th>Copy ID</th>
+            <th>ISBN</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Table body will be populated dynamically -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    async function loadInventory() {
+      try {
+        const copies = await apiGet('/api/inventory');
+        const tbody = document.querySelector('#inventoryTable tbody');
+        tbody.innerHTML = '';
+
+        copies.forEach(copy => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${copy.copy_id}</td>
+            <td>${copy.isbn}</td>
+            <td>${copy.title}</td>
+            <td>${copy.status}</td>
+            <td>
+              <button class="btn btn--primary" ${copy.status !== 'Available' ? 'disabled' : ''}>
+                Rent
+              </button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error('Failed to load inventory', e);
+      }
+    }
+
+    function applyFilters() {
+      const status = document.getElementById('statusFilter').value;
+      document.querySelectorAll('#inventoryTable tbody tr').forEach(row => {
+        const matchStatus = !status || row.children[3].textContent === status;
+        row.style.display = matchStatus ? '' : 'none';
+      });
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    window.addEventListener('DOMContentLoaded', loadInventory);
+  </script>
+</body>
+</html>

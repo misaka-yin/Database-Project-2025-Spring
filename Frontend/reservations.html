@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Room Reservations - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="reservations">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="reservationsSection">
+      <h1 class="section__title">Study Room Reservations</h1>
+
+      <!-- Existing Reservations -->
+      <div class="reservations__existing">
+        <h2>Your Reservations</h2>
+        <table class="table" id="reservationsTable">
+          <thead>
+            <tr>
+              <th>Reservation ID</th>
+              <th>Room ID</th>
+              <th>Topic</th>
+              <th>Group Size</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- New Reservation Form -->
+      <div class="reservations__form">
+        <h2>New Reservation</h2>
+        <form id="reservationForm">
+          <label for="roomSelect">Select Room</label>
+          <select id="roomSelect" required>
+            <option value="">Loading rooms...</option>
+          </select>
+
+          <label for="topicInput">Study Topic</label>
+          <input type="text" id="topicInput" placeholder="Brief description" required>
+
+          <label for="groupSizeInput">Group Size</label>
+          <input type="number" id="groupSizeInput" min="1" placeholder="Number of people" required>
+
+          <label for="startInput">Start Date & Time</label>
+          <input type="datetime-local" id="startInput" required>
+
+          <label for="endInput">End Date & Time</label>
+          <input type="datetime-local" id="endInput" required>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary">Reserve</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    async function loadRooms() {
+      try {
+        const rooms = await apiGet('/api/studyrooms');
+        const select = document.getElementById('roomSelect');
+        select.innerHTML = '<option value="">Select a room</option>';
+        rooms.forEach(r => {
+          select.innerHTML += `<option value="${r.rm_id}">Room ${r.rm_id} (Capacity: ${r.capacity})</option>`;
+        });
+      } catch (e) {
+        console.error('Failed to load rooms', e);
+      }
+    }
+
+    async function loadReservations() {
+      try {
+        const resvs = await apiGet('/api/reservations');
+        const tbody = document.querySelector('#reservationsTable tbody');
+        tbody.innerHTML = '';
+        resvs.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r.rsv_id}</td>
+            <td>${r.rm_id}</td>
+            <td>${r.topic_des}</td>
+            <td>${r.group_size}</td>
+            <td>${r.rsv_start_dt.replace('T',' ')}</td>
+            <td>${r.rsv_end_dt.replace('T',' ')}</td>
+            <td><button class="btn btn--warning cancel-btn" data-id="${r.rsv_id}">Cancel</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        attachCancelHandlers();
+      } catch (e) {
+        console.error('Failed to load reservations', e);
+      }
+    }
+
+    function attachCancelHandlers() {
+      document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.id;
+          if (confirm(`Cancel reservation ${id}?`)) {
+            await fetch(`/api/reservations/${id}`, { method: 'DELETE' });
+            loadReservations();
+          }
+        };
+      });
+    }
+
+    document.getElementById('reservationForm').onsubmit = async e => {
+      e.preventDefault();
+      const data = {
+        rm_id: document.getElementById('roomSelect').value,
+        topic_des: document.getElementById('topicInput').value,
+        group_size: document.getElementById('groupSizeInput').value,
+        rsv_start_dt: document.getElementById('startInput').value,
+        rsv_end_dt: document.getElementById('endInput').value
+      };
+      await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      document.getElementById('reservationForm').reset();
+      loadReservations();
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRooms();
+      loadReservations();
+    });
+  </script>
+</body>
+</html>

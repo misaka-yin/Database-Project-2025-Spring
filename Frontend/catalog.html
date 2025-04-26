@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAL Library Catalog</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body id="catalog">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link nav__link--active">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main>
+    <!-- Catalog Section -->
+    <section class="section catalog" id="catalogSection">
+      <h1 class="section__title">Book Catalog</h1>
+
+      <!-- Filters -->
+      <div class="catalog__filters">
+        <input type="text" id="searchInput" placeholder="Search by title, ISBN...">
+        <select id="topicFilter">
+          <option value="">All Topics</option>
+          <option value="Fiction">Fiction</option>
+          <option value="Science">Science</option>
+          <option value="History">History</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="Available">Available</option>
+          <option value="Not Available">Not Available</option>
+        </select>
+      </div>
+
+      <!-- Catalog Table -->
+      <table class="table" id="catalogTable">
+        <thead>
+          <tr>
+            <th>ISBN</th>
+            <th>Title</th>
+            <th>Authors</th>
+            <th>Topic</th>
+            <th>Available Copies</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows populated by JavaScript -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Gallery Section with Example Images -->
+    <section class="section gallery">
+      <h2 class="section__subtitle">Featured Books</h2>
+      <div class="gallery__grid">
+        <div class="gallery__item"><img src="assets/images/example1.jpg" alt="Example Book 1"><p>Example Book 1</p></div>
+        <div class="gallery__item"><img src="assets/images/example2.jpg" alt="Example Book 2"><p>Example Book 2</p></div>
+        <div class="gallery__item"><img src="assets/images/example3.jpg" alt="Example Book 3"><p>Example Book 3</p></div>
+        <div class="gallery__item"><img src="assets/images/example4.jpg" alt="Example Book 4"><p>Example Book 4</p></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+  <script src="js/pages/catalog.js"></script> 
+</body>
+</html>

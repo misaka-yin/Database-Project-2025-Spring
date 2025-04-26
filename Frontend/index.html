@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="home">
+  <!-- Header with Logo and Slogan -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Library Logo" height="40">
+        <span class="header__slogan">Your Gateway to Knowledge</span>
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link nav__link--active">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Fullscreen Hero Image -->
+  <section class="hero" style="background: url('assets/images/library.jpg') center/cover no-repeat; height:100vh; position:relative;">
+    <div class="hero__overlay" style="background: rgba(0,0,0,0.5); position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align:center; padding:0 1rem;">
+      <h1 class="hero__title" style="font-size:3rem; margin-bottom:0.5rem;">Welcome to PAL Library</h1>
+      <p class="hero__subtitle" style="font-size:1.5rem; margin-bottom:1.5rem;">Empowering Community Through Knowledge</p>
+      <div class="hero__actions">
+        <button id="loginBtn" class="btn btn--primary" style="margin-right:1rem;">Login</button>
+        <button id="registerBtn" class="btn btn--secondary">Register</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeLogin">&times;</span>
+      <h2>Login to PAL Library</h2>
+      <form>
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" required placeholder="you@example.com">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••">
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary">Login</button>
+          <a href="#" class="link">Forgot Password?</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeRegister">&times;</span>
+      <h2>Create an Account</h2>
+      <form>
+        <label for="regFName">First Name</label>
+        <input type="text" id="regFName" required placeholder="First Name">
+        <label for="regLName">Last Name</label>
+        <input type="text" id="regLName" required placeholder="Last Name">
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" required placeholder="you@example.com">
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" required placeholder="••••••••">
+        <label for="regConfirm">Confirm Password</label>
+        <input type="password" id="regConfirm" required placeholder="••••••••">
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary">Register</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/pages/home.js"></script>
+</body>
+</html>
+

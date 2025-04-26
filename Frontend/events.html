@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Events - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="events">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link nav__link--active">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Filters -->
+    <section class="section filters">
+      <h1 class="section__title">Events</h1>
+      <div class="filters__controls">
+        <select id="eventTypeFilter">
+          <option value="">All Types</option>
+          <option value="Seminar">Seminar</option>
+          <option value="Exhibition">Exhibition</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Seminars Section -->
+    <section class="section seminars" id="seminarsSection">
+      <h2 class="section__subtitle">Seminars</h2>
+      <div class="event__list" id="seminarList">
+        <!-- Seminar cards loaded dynamically -->
+      </div>
+    </section>
+
+    <!-- Exhibitions Section -->
+    <section class="section exhibitions" id="exhibitionsSection">
+      <h2 class="section__subtitle">Exhibitions</h2>
+      <div class="event__list" id="exhibitionList">
+        <!-- Exhibition cards loaded dynamically -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal for Details -->
+  <div id="eventModal" class="modal hidden">
+    <div class="modal__content">
+      <span class="modal__close" id="modalClose">&times;</span>
+      <div id="modalBody">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    async function loadEvents() {
+      try {
+        const events = await apiGet('/api/events');
+        const seminarList = document.getElementById('seminarList');
+        const exhibitionList = document.getElementById('exhibitionList');
+        seminarList.innerHTML = '';
+        exhibitionList.innerHTML = '';
+
+        events.forEach(event => {
+          const card = document.createElement('div');
+          card.className = 'event__card';
+          card.innerHTML = `
+            <h3>${event.name}</h3>
+            <p><strong>Topic:</strong> ${event.topic}</p>
+            <p><strong>Time:</strong> ${event.start_datetime} to ${event.stop_datetime}</p>
+            ${event.type === 'Seminar'
+              ? `<button class="btn btn--secondary" onclick="viewSponsors(${event.id})">View Sponsors</button>`
+              : `<button class="btn btn--primary" onclick="registerExhibition(${event.id})">Register</button>`
+            }
+          `;
+          if (event.type === 'Seminar') {
+            seminarList.appendChild(card);
+          } else {
+            exhibitionList.appendChild(card);
+          }
+        });
+      } catch (e) {
+        console.error('Failed to load events', e);
+      }
+    }
+
+    function viewSponsors(eventId) {
+      // Fetch sponsor info
+      apiGet(`/api/events/${eventId}/sponsors`).then(sponsors => {
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+          <h2>Sponsors</h2>
+          <ul>${sponsors.map(s => `<li>${s.name}: $${s.amount}</li>`).join('')}</ul>
+        `;
+        openModal();
+      });
+    }
+
+    function registerExhibition(eventId) {
+      const modalBody = document.getElementById('modalBody');
+      modalBody.innerHTML = `
+        <h2>Register for Exhibition</h2>
+        <form onsubmit="submitRegistration(event, ${eventId})">
+          <label>Your Name: <input type="text" required></label><br>
+          <label>Your Email: <input type="email" required></label><br>
+          <button type="submit" class="btn btn--primary">Submit</button>
+        </form>
+      `;
+      openModal();
+    }
+
+    function submitRegistration(e, eventId) {
+      e.preventDefault();
+      // Here should be a POST to backend
+      closeModal();
+      alert('Registered successfully!');
+    }
+
+    function openModal() {
+      document.getElementById('eventModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('eventModal').classList.add('hidden');
+    }
+
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+
+    document.getElementById('eventTypeFilter').addEventListener('change', () => {
+      const filter = document.getElementById('eventTypeFilter').value;
+      document.getElementById('seminarsSection').style.display = (filter === '' || filter === 'Seminar') ? '' : 'none';
+      document.getElementById('exhibitionsSection').style.display = (filter === '' || filter === 'Exhibition') ? '' : 'none';
+    });
+
+    window.addEventListener('DOMContentLoaded', loadEvents);
+  </script>
+</body>
+</html>

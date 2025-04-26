@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAL Library Authors</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">PAL Library</a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link nav__link--active">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="authors" class="section">
+      <h1 class="section__title">Author Directory</h1>
+
+      <!-- Search/filter input -->
+      <div class="authors__search">
+        <input type="text" id="authorSearch" placeholder="Search authors by name or email..." />
+      </div>
+
+      <!-- Authors table -->
+      <table id="authorsTable" class="table">
+        <thead>
+          <tr>
+            <th>Author ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Address</th>
+            <th>Books
+              <span class="tooltip" title="Number of books contributed">📖</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Example row -->
+          <tr>
+            <td>1</td>
+            <td>John</td>
+            <td>Smith</td>
+            <td>john.smith@email.com</td>
+            <td>123 Main St, Boston, MA</td>
+            <td>5</td>
+          </tr>
+          <!-- Dynamic rows will be inserted here by script -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Inline script for filtering -->
+  <script>
+    const authorSearch = document.getElementById('authorSearch');
+    const authorsTableBody = document.getElementById('authorsTable').getElementsByTagName('tbody')[0];
+
+    authorSearch.addEventListener('input', () => {
+      const filter = authorSearch.value.toLowerCase();
+      Array.from(authorsTableBody.rows).forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+      });
+    });
+
+    // TODO: fetch('/api/authors') to populate rows dynamically
+  </script>
+</body>
+</html>

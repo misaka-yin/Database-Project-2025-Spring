@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Topics - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="topics">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link nav__link--active">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section topics">
+      <h1 class="section__title">Explore Topics</h1>
+
+      <!-- Topics Table -->
+      <table class="table" id="topicsTable">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dynamic rows populated by JS -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    async function loadTopics() {
+      try {
+        const topics = await apiGet('/api/topics');
+        const tbody = document.querySelector('#topicsTable tbody');
+        tbody.innerHTML = '';
+
+        topics.forEach(topic => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${topic.name}</td>
+            <td>${topic.description}</td>
+            <td><button class="btn btn--primary" onclick="viewTopic('${topic.name}')">View Books</button></td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error('Failed to load topics', e);
+      }
+    }
+
+    function viewTopic(topicName) {
+      // 将 topicName 存到 localStorage，跳转 catalog.html 筛选
+      localStorage.setItem('selectedTopic', topicName);
+      window.location.href = 'catalog.html';
+    }
+
+    window.addEventListener('DOMContentLoaded', loadTopics);
+  </script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAL Library My Rentals</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="index.html" class="nav__link">Home</a></li>
+          <li><a href="catalog.html" class="nav__link">Catalog</a></li>
+          <li><a href="authors.html" class="nav__link">Authors</a></li>
+          <li><a href="topics.html" class="nav__link">Topics</a></li>
+          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="rentals.html" class="nav__link nav__link--active">My Rentals</a></li>
+          <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="rentals" class="section">
+      <h1 class="section__title">My Rentals</h1>
+
+      <!-- Filters -->
+      <div class="rentals__filters">
+        <input type="text" id="rentalSearch" placeholder="Filter by Rental ID, Title, or Status..." />
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="Borrowed">Borrowed</option>
+          <option value="Returned">Returned</option>
+          <option value="Late">Late</option>
+        </select>
+      </div>
+
+      <!-- Rentals Table -->
+    <table id="rentalsTable" class="table">
+        <thead>
+        <tr>
+            <th>Rental ID</th>
+            <th>Book ID</th>
+            <th>Title</th>
+            <th>Borrow Date</th>
+            <th>Expected Return</th>
+            <th>Actual Return</th>
+            <th>Status</th>
+            <th>Invoice</th>
+            <th>Payment</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Rows populated by JS -->
+        </tbody>
+    </table>
+    </section>
+
+    <!-- Return Modal -->
+    <div id="returnModal" class="modal hidden">
+      <div class="modal__content">
+        <h2>Confirm Return</h2>
+        <p>Are you sure you want to return this book?</p>
+        <button id="confirmReturnBtn" class="btn btn--primary">Yes, Return</button>
+        <button onclick="closeModal()" class="btn btn--secondary">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div id="invoiceModal" class="modal hidden">
+      <div class="modal__content">
+        <h2>Invoice Details</h2>
+        <div id="invoiceDetails">
+          <!-- Filled dynamically -->
+        </div>
+        <button onclick="closeModal()" class="btn btn--primary">Close</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer__container">
+      <p>© 2025 PAL Library. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+  <script>
+    let currentRentalId = null;
+
+    async function loadRentals() {
+      try {
+        const rentals = await apiGet('/api/rentals');
+        const tbody = document.querySelector('#rentalsTable tbody');
+        tbody.innerHTML = '';
+        rentals.forEach(rental => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${rental.rental_id}</td>
+            <td>${rental.book_title}</td>
+            <td>${rental.borrow_date}</td>
+            <td>${rental.expected_return_date}</td>
+            <td>${rental.actual_return_date || '-'}</td>
+            <td>${rental.status}</td>
+            <td>
+              ${rental.invoice_id ? `<button class="btn btn--secondary" onclick="viewInvoice(${rental.invoice_id})">View Invoice</button>` : '-'}
+            </td>
+            <td>
+              ${rental.status !== 'Returned' ? `<button class="btn btn--primary" onclick="openReturnModal(${rental.rental_id})">Return</button>` : `<button class="btn" disabled>Returned</button>`}
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error('Failed to load rentals', e);
+      }
+    }
+
+    // Filter
+    document.getElementById('rentalSearch').addEventListener('input', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    function applyFilters() {
+      const search = document.getElementById('rentalSearch').value.toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+      document.querySelectorAll('#rentalsTable tbody tr').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const matchSearch = text.includes(search);
+        const matchStatus = !status || row.children[5].textContent === status;
+        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+      });
+    }
+
+    // Modal Controls
+    function openReturnModal(rentalId) {
+      currentRentalId = rentalId;
+      document.getElementById('returnModal').classList.remove('hidden');
+    }
+
+    async function confirmReturn() {
+      if (!currentRentalId) return;
+      try {
+        await apiPost(`/api/rentals/${currentRentalId}/return`, {});
+        closeModal();
+        loadRentals();
+      } catch (e) {
+        console.error('Failed to return rental', e);
+      }
+    }
+
+    function viewInvoice(invoiceId) {
+      document.getElementById('invoiceModal').classList.remove('hidden');
+      const detailsDiv = document.getElementById('invoiceDetails');
+      detailsDiv.innerHTML = '<p>Loading...</p>';
+      apiGet(`/api/invoices/${invoiceId}`).then(data => {
+        detailsDiv.innerHTML = `
+          <p>Invoice ID: ${data.invoice_id}</p>
+          <p>Invoice Date: ${data.invoice_date}</p>
+          <p>Invoice Amount: $${data.amount.toFixed(2)}</p>
+        `;
+      }).catch(e => {
+        detailsDiv.innerHTML = '<p>Failed to load invoice details.</p>';
+      });
+    }
+
+    function closeModal() {
+      document.getElementById('returnModal').classList.add('hidden');
+      document.getElementById('invoiceModal').classList.add('hidden');
+      currentRentalId = null;
+    }
+
+    document.getElementById('confirmReturnBtn').addEventListener('click', confirmReturn);
+
+    window.addEventListener('DOMContentLoaded', loadRentals);
+  </script>
+</body>
+</html>
