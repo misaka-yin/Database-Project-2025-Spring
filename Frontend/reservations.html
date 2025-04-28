@@ -59,10 +59,10 @@
     }
 
     .table {
-      width: 100%;
+      width: 80%;
       border-collapse: collapse;
       margin-bottom: 10px;
-      font-size: 0.9rem;
+      font-size: 0.7rem;
       /* Smaller font size for tables */
     }
 
@@ -273,7 +273,7 @@
     </div>
   </footer>
 
-  <script src="js/main.js"></script>
+  <script src="/js/main.js"></script>
   <script>
     const reservationsPerPage = 5;
     let upcomingReservations = [];
@@ -281,6 +281,13 @@
     let currentUpcomingPage = 1;
     let currentPastPage = 1;
     let allRooms = [];
+
+    // Add this at the beginning of your script tag
+    async function apiGet(path) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json();
+    }
 
     // Tab functionality
     document.addEventListener('DOMContentLoaded', function () {
@@ -332,20 +339,44 @@
       }
     }
 
+    function parseDateTime(dateTimeStr) {
+      console.log("Parsing date string:", dateTimeStr);
+      const parsedDate = new Date(dateTimeStr);
+      console.log("Parsed as:", parsedDate);
+      return parsedDate;
+    }
+
     async function loadReservations() {
       try {
         const resvs = await apiGet('/api/reservations');
+        console.log("All reservations:", resvs);
+
         const now = new Date();
-        upcomingReservations = resvs.filter(r => new Date(r.rsv_end_dt) > now).sort((a, b) => new Date(a.rsv_start_dt) - new Date(b.rsv_start_dt));
-        pastReservations = resvs.filter(r => new Date(r.rsv_end_dt) <= now).sort((a, b) => new Date(b.rsv_start_dt) - new Date(a.rsv_start_dt));
+        console.log("Current date for comparison:", now);
+
+        upcomingReservations = resvs.filter(r => {
+          const endDate = parseDateTime(r.rsv_end_dt);
+          const isUpcoming = endDate > now;
+          console.log(`Reservation ${r.rsv_id} end date: ${endDate}, is upcoming: ${isUpcoming}`);
+          return isUpcoming;
+        }).sort((a, b) => parseDateTime(a.rsv_start_dt) - parseDateTime(b.rsv_start_dt));
+
+        pastReservations = resvs.filter(r => {
+          const endDate = parseDateTime(r.rsv_end_dt);
+          return endDate <= now;
+        }).sort((a, b) => parseDateTime(b.rsv_start_dt) - parseDateTime(a.rsv_start_dt));
+
+        console.log("Upcoming reservations:", upcomingReservations);
+        console.log("Past reservations:", pastReservations);
+
         displayUpcomingReservations(currentUpcomingPage);
-        // Only display past reservations if that tab is active
+
         if (document.querySelector('.tab-button[data-tab="past"]').classList.contains('active')) {
           displayPastReservations(currentPastPage);
         }
       } catch (e) {
         console.error('Failed to load reservations', e);
-        //showMessage('Failed to load your reservations.');
+        showMessage('Failed to load your reservations.');
       }
     }
 
@@ -453,7 +484,7 @@
       });
     }
 
-    // Find Availability Logic
+    // Find ability Logic
     document.getElementById('findAvailabilityBtn').addEventListener('click', async () => {
       const date = document.getElementById('availabilityDate').value;
       const startTime = document.getElementById('availabilityStartTime').value;
@@ -465,16 +496,23 @@
         return;
       }
 
-      const startDateTime = `${date}T${startTime}`;
-      const endDateTime = `${date}T${endTime}`;
+      // Format date and time
+      const startDateTime = `${date} ${startTime}:00`;
+      const endDateTime = `${date} ${endTime}:00`;
 
       try {
-        const availableRooms = await apiGet(`/api/availability?start_time=${encodeURIComponent(startDateTime)}&end_time=${encodeURIComponent(endDateTime)}&group_size=${groupSize}`);
+        const response = await fetch(`/api/availability?start_time=${encodeURIComponent(startDateTime)}&end_time=${encodeURIComponent(endDateTime)}&group_size=${groupSize}`);
+
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const availableRooms = await response.json();
         displayAvailableRooms(availableRooms);
         document.getElementById('availableRoomsTable').style.display = 'table';
       } catch (error) {
         console.error('Error fetching availability:', error);
-        //showMessage('Failed to find available rooms.');
+        showMessage('Failed to find available rooms.');
         document.getElementById('availableRoomsTable').style.display = 'none';
       }
     });
