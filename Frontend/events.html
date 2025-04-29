@@ -39,9 +39,11 @@
     }
 
     .event-table {
-      width: 100%;
+      width: 90%;
       border-collapse: collapse;
       margin-bottom: 15px;
+      font-size: 0.8rem;
+      /* Smaller font size for tables */
     }
 
     .event-table th,
@@ -58,12 +60,41 @@
     }
 
     .pagination button {
-      padding: 5px 10px;
+      padding: 2px 8px;
       cursor: pointer;
     }
 
     .hidden {
       display: none !important;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal__content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px;
+    }
+
+    .modal__close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -83,7 +114,7 @@
           <li><a href="inventory.html" class="nav__link">Inventory</a></li>
           <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
           <li><a href="events.html" class="nav__link nav__link--active">Events</a></li>
-          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+          <li><a href="reservations.html" class="nav__link">Reservations</a></li>
         </ul>
       </nav>
     </div>
@@ -118,8 +149,8 @@
 
       <div id="exhibition-tab" class="tab-content hidden">
         <div class="filter-controls">
-          <label for="seminarTopicFilter">Topic:</label>
-          <select id="seminarTopicFilter">
+          <label for="exhibitionTopicFilter">Topic:</label>
+          <select id="exhibitionTopicFilter">
             <option value="">All Topics</option>
           </select>
           <label for="exhibitionStatusFilter">Status:</label>
@@ -153,6 +184,14 @@
 
   <script src="js/main.js"></script>
   <script>
+    // Define apiGet function directly to ensure it's available
+    async function apiGet(path) {
+      console.log("Calling apiGet for path:", path);
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json();
+    }
+
     const allEvents = []; // Store all fetched events
     const eventsPerPage = 10;
     let currentSeminarPage = 1;
@@ -168,24 +207,54 @@
 
     async function loadEvents() {
       try {
+        console.log("Loading events...");
         const eventsData = await apiGet('/api/events');
+        console.log("Events loaded:", eventsData);
+
         allEvents.push(...eventsData);
         populateSeminarTopicFilter(eventsData);
+        populateExhibitionTopicFilter(eventsData);
         filterAndDisplaySeminars();
         filterAndDisplayExhibitions();
       } catch (e) {
         console.error('Failed to load events', e);
+        // Display error message to the user
+        const seminarTableContainer = document.getElementById('seminarTableContainer');
+        seminarTableContainer.innerHTML = '<p>Failed to load events. Please try again later.</p>';
       }
     }
 
     function populateSeminarTopicFilter(events) {
       const seminarTopicFilter = document.getElementById('seminarTopicFilter');
       const topics = [...new Set(events.filter(e => e.type === 'Seminar').map(e => e.topic))];
+
+      // Clear existing options except the first one
+      while (seminarTopicFilter.options.length > 1) {
+        seminarTopicFilter.remove(1);
+      }
+
       topics.forEach(topic => {
         const option = document.createElement('option');
         option.value = topic;
         option.textContent = topic;
         seminarTopicFilter.appendChild(option);
+      });
+    }
+
+    function populateExhibitionTopicFilter(events) {
+      const exhibitionTopicFilter = document.getElementById('exhibitionTopicFilter');
+      const topics = [...new Set(events.filter(e => e.type === 'Exhibition').map(e => e.topic))];
+
+      // Clear existing options except the first one
+      while (exhibitionTopicFilter.options.length > 1) {
+        exhibitionTopicFilter.remove(1);
+      }
+
+      topics.forEach(topic => {
+        const option = document.createElement('option');
+        option.value = topic;
+        option.textContent = topic;
+        exhibitionTopicFilter.appendChild(option);
       });
     }
 
@@ -202,6 +271,7 @@
     function displaySeminarTable(seminars, page) {
       const seminarTableContainer = document.getElementById('seminarTableContainer');
       seminarTableContainer.innerHTML = '';
+
       if (seminars.length === 0) {
         seminarTableContainer.innerHTML = '<p>No seminars found.</p>';
         document.getElementById('seminarPagination').innerHTML = '';
@@ -218,7 +288,7 @@
                 <thead>
                     <tr>
                         <th>Seminar Title</th>
-                        <th>Type</th>
+                        <th>Seminar Type</th>
                         <th>Sponsor</th>
                         <th>Date</th>
                         <th>Time</th>
@@ -229,8 +299,8 @@
                     ${currentSeminars.map(seminar => `
                         <tr>
                             <td>${seminar.name}</td>
-                            <td>${seminar.type}</td>
-                            <td><button class="btn btn--secondary btn--small" onclick="viewSponsors(${seminar.id})">View</button></td>
+                            <td>${seminar.seminar_type}</td>
+                            <td><button class="btn btn--secondary btn--small view-sponsors-btn" data-id="${seminar.id}">View</button></td>
                             <td>${new Date(seminar.start_datetime).toLocaleDateString()}</td>
                             <td>${new Date(seminar.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(seminar.stop_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                             <td>${seminar.invited_attendees ? seminar.invited_attendees.join(', ') : 'N/A'}</td>
@@ -239,6 +309,15 @@
                 </tbody>
             `;
       seminarTableContainer.appendChild(table);
+
+      // Attach event listeners to the "View" buttons
+      table.querySelectorAll('.view-sponsors-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const eventId = btn.getAttribute('data-id');
+          viewSponsors(eventId);
+        });
+      });
+
       renderSeminarPagination(seminars.length, page);
     }
 
@@ -268,18 +347,20 @@
       displaySeminarTable(filteredSeminars, currentSeminarPage);
     }
 
-    function filterExhibitions(events, statusFilter) {
+    function filterExhibitions(events, topicFilter, statusFilter) {
       return events.filter(event => {
         if (event.type !== 'Exhibition') return false;
+        const topicMatch = !topicFilter || event.topic === topicFilter;
         const status = getEventStatus(event);
         const statusMatch = !statusFilter || status === statusFilter;
-        return statusMatch;
+        return topicMatch && statusMatch;
       });
     }
 
     function displayExhibitionTable(exhibitions, page) {
       const exhibitionTableContainer = document.getElementById('exhibitionTableContainer');
       exhibitionTableContainer.innerHTML = '';
+
       if (exhibitions.length === 0) {
         exhibitionTableContainer.innerHTML = '<p>No exhibitions found.</p>';
         document.getElementById('exhibitionPagination').innerHTML = '';
@@ -293,33 +374,85 @@
       const table = document.createElement('table');
       table.className = 'event-table';
       table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th>Exhibition Title</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Register</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${currentExhibitions.map(exhibition => `
-                        <tr>
-                            <td>${exhibition.name}</td>
-                            <td>${new Date(exhibition.start_datetime).toLocaleDateString()}</td>
-                            <td>${new Date(exhibition.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(exhibition.stop_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                            <td>
-                                ${getEventStatus(exhibition) === 'upcoming'
-          ? `<a href="${exhibition.registration_link}" target="_blank" class="btn btn--primary btn--small">Register</a>`
+    <thead>
+      <tr>
+        <th>Exhibition Title</th>
+        <th>Topic</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Register</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${currentExhibitions.map(exhibition => `
+        <tr>
+          <td>${exhibition.name}</td>
+          <td>${exhibition.topic}</td>
+          <td>${new Date(exhibition.start_datetime).toLocaleDateString()}</td>
+          <td>${new Date(exhibition.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(exhibition.stop_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+          <td>
+            ${getEventStatus(exhibition) === 'upcoming'
+          ? `<button class="btn btn--primary btn--small register-btn" data-id="${exhibition.id}" data-name="${exhibition.name}">Register</button>`
           : 'Closed'}
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            `;
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+
       exhibitionTableContainer.appendChild(table);
+
+      // Attach event listeners to register buttons
+      table.querySelectorAll('.register-btn').forEach(button => {
+        button.addEventListener('click', function () {
+          const eventId = this.getAttribute('data-id');
+          const eventName = this.getAttribute('data-name');
+          confirmRegistration(eventId, eventName);
+        });
+      });
+
       renderExhibitionPagination(exhibitions.length, page);
     }
 
+    function confirmRegistration(eventId, eventName) {
+      // Create confirmation dialog
+      const confirmed = confirm(`Confirm registration for exhibition: ${eventName}?`);
+
+      if (confirmed) {
+        // Send registration request to API
+        fetch(`/api/exhibitions/${eventId}/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+          .then(response => {
+            if (!response.ok) {
+              if (response.headers.get('content-type')?.includes('application/json')) {
+                return response.json().then(data => {
+                  throw new Error(data.error || 'Registration failed');
+                });
+              } else {
+                // Handle non-JSON responses
+                return response.text().then(text => {
+                  console.error('Non-JSON response:', text);
+                  throw new Error('Server returned an unexpected response. Check server logs for details.');
+                });
+              }
+            }
+            return response.json();
+          })
+          .then(data => {
+            alert(`Registration successful! Your registration ID is ${data.reg_id}`);
+            // Refresh the exhibitions list
+            filterAndDisplayExhibitions();
+          })
+          .catch(error => {
+            alert(error.message);
+            console.error('Registration error:', error);
+          });
+      }
+    }
     function renderExhibitionPagination(totalEvents, currentPage) {
       const exhibitionPagination = document.getElementById('exhibitionPagination');
       exhibitionPagination.innerHTML = '';
@@ -340,66 +473,157 @@
     }
 
     function filterAndDisplayExhibitions() {
+      const topicFilter = document.getElementById('exhibitionTopicFilter').value;
       const statusFilter = document.getElementById('exhibitionStatusFilter').value;
-      const filteredExhibitions = filterExhibitions(allEvents, statusFilter);
+      const filteredExhibitions = filterExhibitions(allEvents, topicFilter, statusFilter);
       displayExhibitionTable(filteredExhibitions, currentExhibitionPage);
     }
 
-    function viewSponsors(eventId) {
-      // Fetch sponsor info
-      apiGet(`/api/events/${eventId}/sponsors`).then(sponsors => {
-        const modalBody = document.getElementById('modalBody');
-        modalBody.innerHTML = `
-                    <h2>Sponsors</h2>
-                    <ul>${sponsors.map(s => `<li>${s.name}: $${s.amount}</li>`).join('')}</ul>
-                `;
-        openModal();
-      });
+    async function viewSponsors(eventId) {
+      try {
+        console.log("Fetching sponsors for event:", eventId);
+        const sponsors = await apiGet(`/api/events/${eventId}/sponsors`);
+        console.log("Sponsors data:", sponsors);
+
+        // Create content for popup window
+        let popupContent = `
+      <html>
+      <head>
+        <title>Event Sponsors</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+          }
+          h2 {
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+          }
+          ul {
+            list-style-type: none;
+            padding: 0;
+          }
+          li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+          }
+          .sponsor-amount {
+            float: right;
+            font-weight: bold;
+          }
+          .total {
+            margin-top: 20px;
+            font-weight: bold;
+            text-align: right;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>Event Sponsors</h2>
+        <ul>
+    `;
+
+        // Add each sponsor to the content
+        let totalAmount = 0;
+        sponsors.forEach(s => {
+          popupContent += `<li>${s.name} <span class="sponsor-amount">$${s.amount.toFixed(2)}</span></li>`;
+          totalAmount += parseFloat(s.amount);
+        });
+
+        // Add total amount
+        popupContent += `
+        </ul>
+        <div class="total">Total Sponsorship: $${totalAmount.toFixed(2)}</div>
+      </body>
+      </html>
+    `;
+
+        // Open popup window
+        const popupWindow = window.open('', 'EventSponsors', 'width=400,height=500,resizable=yes,scrollbars=yes');
+        popupWindow.document.write(popupContent);
+        popupWindow.document.close();
+
+        // Focus the popup window
+        if (popupWindow) {
+          popupWindow.focus();
+        } else {
+          alert("Popup was blocked by your browser. Please allow popups for this site to view sponsors.");
+        }
+      } catch (error) {
+        console.error("Error fetching sponsors:", error);
+        alert("Failed to load sponsors information. Please try again later.");
+      }
     }
 
     function openModal() {
-      document.getElementById('eventModal').classList.remove('hidden');
+      document.getElementById('eventModal').style.display = 'block';
     }
 
     function closeModal() {
-      document.getElementById('eventModal').classList.add('hidden');
+      document.getElementById('eventModal').style.display = 'none';
     }
 
-    document.getElementById('modalClose').addEventListener('click', closeModal);
-
-    document.addEventListener('DOMContentLoaded', () => {
-      loadEvents();
-
-      // Tab switching logic
+    // Setup tab functionality
+    function setupTabs() {
       const tabButtons = document.querySelectorAll('.tab-button');
       const seminarTab = document.getElementById('seminar-tab');
       const exhibitionTab = document.getElementById('exhibition-tab');
+
+      // Make sure seminar tab is visible initially
+      seminarTab.classList.remove('hidden');
 
       tabButtons.forEach(button => {
         button.addEventListener('click', () => {
           tabButtons.forEach(btn => btn.classList.remove('active'));
           button.classList.add('active');
+
           const tab = button.getAttribute('data-tab');
           seminarTab.classList.toggle('hidden', tab !== 'seminar');
           exhibitionTab.classList.toggle('hidden', tab !== 'exhibition');
           currentTab = tab;
         });
       });
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM Content loaded - events.html");
+
+      setupTabs();
+      loadEvents();
 
       // Event listeners for seminar filters
       document.getElementById('seminarTopicFilter').addEventListener('change', () => {
         currentSeminarPage = 1;
         filterAndDisplaySeminars();
       });
+
       document.getElementById('seminarStatusFilter').addEventListener('change', () => {
         currentSeminarPage = 1;
         filterAndDisplaySeminars();
       });
 
-      // Event listener for exhibition filter
+      // Event listener for exhibition filters
+      document.getElementById('exhibitionTopicFilter').addEventListener('change', () => {
+        currentExhibitionPage = 1;
+        filterAndDisplayExhibitions();
+      });
+
       document.getElementById('exhibitionStatusFilter').addEventListener('change', () => {
         currentExhibitionPage = 1;
         filterAndDisplayExhibitions();
+      });
+
+      // Modal close button
+      document.getElementById('modalClose').addEventListener('click', closeModal);
+
+      // Close modal when clicking outside
+      window.addEventListener('click', (event) => {
+        const modal = document.getElementById('eventModal');
+        if (event.target === modal) {
+          closeModal();
+        }
       });
     });
   </script>

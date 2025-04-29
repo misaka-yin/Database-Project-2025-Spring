@@ -26,6 +26,87 @@ const LOGGED_IN_USER_ID = 1;
 
 // API Routes
 
+// Register for an exhibition
+// Add this to your server.js file
+app.post('/api/exhibitions/:id/register', (req, res) => {
+    try {
+      const eventId = req.params.id;
+      console.log(`Attempting to register user ${LOGGED_IN_USER_ID} for exhibition ${eventId}`);
+    
+      // In a real application, use actual user authentication
+      // Here we're using the mock logged-in user
+      const customerId = LOGGED_IN_USER_ID;
+    
+      // Check if the exhibition exists
+      db.get("SELECT * FROM EXHIBITION WHERE EVENT_ID = ?", [eventId], (err, exhibition) => {
+        if (err) {
+          console.error('Error checking exhibition existence:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
+      
+        if (!exhibition) {
+          return res.status(404).json({ error: 'Exhibition not found' });
+        }
+        
+        // First check if this customer is already registered for this exhibition
+        const checkSql = `
+          SELECT * FROM CGY_CUS_EXH 
+          WHERE EVENT_ID = ? AND CUSTOMER_ID = ?
+        `;
+      
+        db.get(checkSql, [eventId, customerId], (err, existingReg) => {
+          if (err) {
+            console.error('Error checking registration:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+        
+          // If already registered, return error
+          if (existingReg) {
+            return res.status(409).json({ 
+              error: 'You are already registered for this exhibition' 
+            });
+          }
+        
+          // Get the next REG_ID
+          db.get("SELECT MAX(REG_ID) as max_id FROM CGY_CUS_EXH", [], (err, result) => {
+            if (err) {
+              console.error('Error getting max REG_ID:', err.message);
+              return res.status(500).json({ error: err.message });
+            }
+          
+            const nextRegId = (result.max_id || 0) + 1;
+          
+            // Insert new registration
+            const insertSql = `
+              INSERT INTO CGY_CUS_EXH (EVENT_ID, CUSTOMER_ID, REG_ID)
+              VALUES (?, ?, ?)
+            `;
+          
+            db.run(insertSql, [eventId, customerId, nextRegId], function(err) {
+              if (err) {
+                console.error('Error creating registration:', err.message);
+                return res.status(500).json({ error: err.message });
+              }
+            
+              console.log(`New registration created: Event ${eventId}, Customer ${customerId}, RegID ${nextRegId}`);
+            
+              res.status(201).json({
+                message: 'Registration successful',
+                reg_id: nextRegId,
+                event_id: eventId,
+                customer_id: customerId
+              });
+            });
+          });
+        });
+      });
+    } catch (error) {
+      console.error('Unexpected error in registration endpoint:', error);
+      res.status(500).json({ error: 'Server error. Check logs for details.' });
+    }
+  });
+  
+
 // Get all study rooms
 app.get('/api/studyrooms', (req, res) => {
   const sql = 'SELECT * FROM CGY_STUDYRM';
@@ -270,6 +351,108 @@ app.delete('/api/reservations/:id', (req, res) => {
     });
   });
 });
+
+// Events API routes (for events.html)
+app.get('/api/events', (req, res) => {
+    // Get all events from CGY_EVENTS table
+    const sql = `
+      SELECT e.EVENT_ID as id, 
+             e.EVENT_NAME as name, 
+             CASE e.EVENT_TYPE 
+               WHEN 'S' THEN 'Seminar' 
+               WHEN 'E' THEN 'Exhibition' 
+               ELSE e.EVENT_TYPE 
+             END as type,
+			 s.S_TYPE as seminar_type,
+             t.TOPIC_DES as topic,
+             e.START_DT as start_datetime, 
+             e.END_DT as stop_datetime
+      FROM CGY_EVENTS e
+      LEFT JOIN CGY_TOPIC t ON e.TOPIC_ID = t.TOPIC_ID
+	  LEFT JOIN SEMINAR s ON e.EVENT_ID = s.EVENT_ID
+      ORDER BY e.START_DT DESC
+    `;
+    
+    db.all(sql, [], (err, events) => {
+      if (err) {
+        console.error('Error fetching events:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Get additional details based on event type
+      const eventPromises = events.map(event => {
+        // For seminars, get invited attendees
+        if (event.type === 'Seminar') {
+          return new Promise((resolve) => {
+            const seminarSql = `
+              SELECT a.A_FNAME || ' ' || a.A_LNAME as full_name
+              FROM CGY_AUT_SEM aus
+              JOIN CGY_AUTHOR a ON aus.CGY_AUTHOR_AUTHOR_ID = a.AUTHOR_ID
+              WHERE aus.SEMINAR_EVENT_ID = ?
+            `;
+            
+            db.all(seminarSql, [event.id], (err, attendees) => {
+              if (err) {
+                console.error('Error fetching seminar attendees:', err.message);
+                event.invited_attendees = [];
+              } else {
+                event.invited_attendees = attendees.map(a => a.full_name);
+              }
+              resolve(event);
+            });
+          });
+        } 
+        // For exhibitions, add registration link (this would come from your database)
+        else if (event.type === 'Exhibition') {
+          // You would need a real table for this, but for now adding a placeholder
+          event.registration_link = '#'; // Placeholder
+          return Promise.resolve(event);
+        }
+        return Promise.resolve(event);
+      });
+      
+      // Wait for all promises to resolve
+      Promise.all(eventPromises)
+        .then(enrichedEvents => {
+          res.json(enrichedEvents);
+        })
+        .catch(error => {
+          console.error('Error enriching events data:', error);
+          res.status(500).json({ error: 'Failed to process events data' });
+        });
+    });
+  });
+  
+  app.get('/api/events/:id/sponsors', (req, res) => {
+    const { id } = req.params;
+    
+    // Query to get sponsors for a seminar
+    const sql = `
+      SELECT 
+        CASE 
+          WHEN i.S_FNAME IS NOT NULL THEN i.S_FNAME || ' ' || i.S_LNAME
+          WHEN o.ORG_NAME IS NOT NULL THEN o.ORG_NAME
+          ELSE 'Unknown'
+        END as name,
+        sp.SPONSOR_AMT as amount
+      FROM CGY_SMR_SP sp
+      LEFT JOIN CGY_SPONSOR s ON sp.SPONSOR_ID = s.SPONSOR_ID
+      LEFT JOIN INDIVIDUAL i ON sp.SPONSOR_ID = i.SPONSOR_ID
+      LEFT JOIN ORG o ON sp.SPONSOR_ID = o.SPONSOR_ID
+      WHERE sp.EVENT_ID = ?
+    `;
+    
+    db.all(sql, [id], (err, sponsors) => {
+      if (err) {
+        console.error('Error fetching sponsors:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      res.json(sponsors);
+    });
+  });
+
+  
 
 // Start the server
 app.listen(PORT, () => {
