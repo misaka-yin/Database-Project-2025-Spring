@@ -6,9 +6,73 @@
   <title>PAL Library</title>
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Hero Section */
+    .hero {
+      position: relative;
+      height: 100vh;
+      background: url('assets/images/library.jpg') center/cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero__overlay {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2rem;
+      border-radius: 1rem;
+      text-align: center;
+      color: #fff;
+      max-width: 90%;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    .modal-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 1rem;
+      font-size: 1.5rem;
+      color: #888;
+      cursor: pointer;
+    }
+    .modal-close:hover {
+      color: #333;
+    }
+
+    /* Form Actions */
+    .form-actions {
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+  </style>
 </head>
 <body id="home">
-  <!-- Header with Logo and Slogan -->
+  <!-- Header -->
   <header class="header">
     <div class="header__container">
       <a href="index.html" class="header__logo">
@@ -17,8 +81,8 @@
       </a>
       <nav class="header__nav">
         <ul class="nav__list">
-          <li><a href="index.html" class="nav__link">Home</a></li>
-          <li><a href="browse.html" class="nav__link nav__link--active">Browse</a></li>
+          <li><a href="index.html" class="nav__link nav__link--active">Home</a></li>
+          <li><a href="browse.html" class="nav__link">Browse</a></li>
           <li><a href="reservations.html" class="nav__link">Reservations</a></li>
           <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
           <li><a href="events.html" class="nav__link">Events</a></li>
@@ -27,13 +91,13 @@
     </div>
   </header>
 
-  <!-- Fullscreen Hero Image -->
-  <section class="hero" style="background: url('assets/images/library.jpg') center/cover no-repeat; height:100vh; position:relative;">
-    <div class="hero__overlay" style="background: rgba(0,0,0,0.5); position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align:center; padding:0 1rem;">
-      <h1 class="hero__title" style="font-size:3rem; margin-bottom:0.5rem;">Welcome to PAL Library</h1>
-      <p class="hero__subtitle" style="font-size:1.5rem; margin-bottom:1.5rem;">Empowering Community Through Knowledge</p>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero__overlay">
+      <h1 class="hero__title" style="font-size: 3rem; margin-bottom: 0.5rem;">Welcome to PAL Library</h1>
+      <p class="hero__subtitle" style="font-size: 1.5rem; margin-bottom: 1.5rem;">Empowering Community Through Knowledge</p>
       <div class="hero__actions">
-        <button id="loginBtn" class="btn btn--primary" style="margin-right:1rem;">Login</button>
+        <button id="loginBtn" class="btn btn--primary" style="margin-right: 1rem;">Login</button>
         <button id="registerBtn" class="btn btn--secondary">Register</button>
       </div>
     </div>
@@ -42,7 +106,7 @@
   <!-- Login Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
-      <span class="close" id="closeLogin">&times;</span>
+      <span class="modal-close" data-modal-close>&times;</span>
       <h2>Login to PAL Library</h2>
       <form>
         <label for="loginEmail">Email</label>
@@ -60,7 +124,7 @@
   <!-- Register Modal -->
   <div id="registerModal" class="modal">
     <div class="modal-content">
-      <span class="close" id="closeRegister">&times;</span>
+      <span class="modal-close" data-modal-close>&times;</span>
       <h2>Create an Account</h2>
       <form>
         <label for="regFName">First Name</label>
@@ -80,8 +144,22 @@
     </div>
   </div>
 
-  <script src="js/main.js"></script>
-  <script src="js/pages/home.js"></script>
+  <script>
+    // Modal toggle logic
+    function toggleModal(modalId, show) {
+      const modal = document.getElementById(modalId);
+      modal.classList[show ? 'add' : 'remove']('active');
+    }
+    document.getElementById('loginBtn').addEventListener('click', () => toggleModal('loginModal', true));
+    document.getElementById('registerBtn').addEventListener('click', () => toggleModal('registerModal', true));
+    document.querySelectorAll('[data-modal-close]').forEach(el => {
+      el.addEventListener('click', () => toggleModal(el.closest('.modal').id, false));
+    });
+    window.addEventListener('click', e => {
+      if (e.target.classList.contains('modal')) {
+        e.target.classList.remove('active');
+      }
+    });
+  </script>
 </body>
 </html>
-
