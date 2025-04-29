@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PAL Library Catalog</title>
+  <title>Browse - PAL Library</title>
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
-
-<body id="catalog">
+<body id="browse">
   <!-- Header -->
   <header class="header">
     <div class="header__container">
@@ -18,80 +17,125 @@
       <nav class="header__nav">
         <ul class="nav__list">
           <li><a href="index.html" class="nav__link">Home</a></li>
-          <li><a href="catalog.html" class="nav__link nav__link--active">Catalog</a></li>
-          <li><a href="authors.html" class="nav__link">Authors</a></li>
-          <li><a href="topics.html" class="nav__link">Topics</a></li>
-          <li><a href="inventory.html" class="nav__link">Inventory</a></li>
+          <li><a href="browse.html" class="nav__link nav__link--active">Browse</a></li>
+          <li><a href="reservations.html" class="nav__link">Reservations</a></li>
           <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
           <li><a href="events.html" class="nav__link">Events</a></li>
-          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
         </ul>
       </nav>
     </div>
   </header>
-
-  <!-- Main -->
+  
   <main>
-    <!-- Catalog Section -->
-    <section class="section catalog" id="catalogSection">
-      <h1 class="section__title">Book Catalog</h1>
-
-      <!-- Filters -->
-      <div class="catalog__filters">
-        <input type="text" id="searchInput" placeholder="Search by title, ISBN...">
+    <section class="section browse-filters">
+      <h1 class="section__title">Search Books</h1>
+      <div class="browse-filters__controls">
+        <label for="searchType">Search by:</label>
+        <select id="searchType">
+          <option value="title">Title</option>
+          <option value="author">Author</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search by title...">
+        <label for="topicFilter">Topic:</label>
         <select id="topicFilter">
           <option value="">All Topics</option>
-          <option value="Fiction">Fiction</option>
-          <option value="Science">Science</option>
-          <option value="History">History</option>
-        </select>
-        <select id="statusFilter">
-          <option value="">All Status</option>
-          <option value="Available">Available</option>
-          <option value="Not Available">Not Available</option>
         </select>
       </div>
+    </section>
 
-      <!-- Catalog Table -->
-      <table class="table" id="catalogTable">
+    <section class="section browse-results">
+      <table id="browseTable" class="table">
         <thead>
           <tr>
             <th>ISBN</th>
             <th>Title</th>
             <th>Authors</th>
             <th>Topic</th>
-            <th>Available Copies</th>
+            <th>Total Copies</th>
+            <th>Available</th>
             <th>Status</th>
-            <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          <!-- Rows populated by JavaScript -->
+          <!-- Populated by JS -->
         </tbody>
       </table>
     </section>
-
-    <!-- Gallery Section with Example Images -->
-    <section class="section gallery">
-      <h2 class="section__subtitle">Featured Books</h2>
-      <div class="gallery__grid">
-        <div class="gallery__item"><img src="assets/images/example1.jpg" alt="Example Book 1"><p>Example Book 1</p></div>
-        <div class="gallery__item"><img src="assets/images/example2.jpg" alt="Example Book 2"><p>Example Book 2</p></div>
-        <div class="gallery__item"><img src="assets/images/example3.jpg" alt="Example Book 3"><p>Example Book 3</p></div>
-        <div class="gallery__item"><img src="assets/images/example4.jpg" alt="Example Book 4"><p>Example Book 4</p></div>
-      </div>
-    </section>
   </main>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="footer__container">
       <p>© 2025 PAL Library. All rights reserved.</p>
     </div>
   </footer>
 
-  <!-- Scripts -->
   <script src="js/main.js"></script>
-  <script src="js/pages/catalog.js"></script> 
+  <script>
+    let books = [];
+
+    async function loadTopics() {
+      try {
+        const topics = await apiGet('/api/topics');
+        const topicFilter = document.getElementById('topicFilter');
+        topics.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.name;
+          opt.textContent = t.name;
+          topicFilter.appendChild(opt);
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    async function loadBooks() {
+      try {
+        books = await apiGet('/api/books');
+        renderTable();
+      } catch (e) { console.error(e); }
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#browseTable tbody');
+      tbody.innerHTML = '';
+
+      const searchType = document.getElementById('searchType').value;
+      const term = document.getElementById('searchInput').value.trim().toLowerCase();
+      const topic = document.getElementById('topicFilter').value;
+
+      books.forEach(book => {
+        const matchTerm = searchType === 'title'
+          ? book.title.toLowerCase().includes(term)
+          : book.authors.some(a => a.toLowerCase().includes(term));
+        const matchTopic = !topic || book.topic === topic;
+
+        if (matchTerm && matchTopic) {
+          const tr = document.createElement('tr');
+          const status = book.available_copies > 0 ? 'Available' : 'Not Available';
+          tr.innerHTML = `
+            <td>${book.isbn}</td>
+            <td>${book.title}</td>
+            <td>${book.authors.join(', ')}</td>
+            <td>${book.topic}</td>
+            <td>${book.total_copies}</td>
+            <td>${book.available_copies}</td>
+            <td>${status}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      });
+    }
+
+    document.getElementById('searchType').addEventListener('change', e => {
+      const placeholder = e.target.value === 'title' ? 'Search by title...' : 'Search by author...';
+      document.getElementById('searchInput').placeholder = placeholder;
+      renderTable();
+    });
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('topicFilter').addEventListener('change', renderTable);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadTopics();
+      loadBooks();
+    });
+  </script>
 </body>
 </html>

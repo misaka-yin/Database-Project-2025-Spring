@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body id="admin">
+  <!-- Header -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__logo">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+        <span class="header__slogan">Library Admin</span>
+      </a>
+      <nav class="header__nav">
+        <ul class="nav__list">
+          <li><a href="admin.html" class="nav__link nav__link--active">Dashboard</a></li>
+          <li><a href="index.html" class="nav__link">Home</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar__stats">
+        <h2>Overview</h2>
+        <ul>
+          <li>Total Books: <span id="statTotalBooks">...</span></li>
+          <li>Borrowed Books: <span id="statBorrowedBooks">...</span></li>
+          <li>Overdue Rentals: <span id="statOverdue">...</span></li>
+          <li>Active Reservations: <span id="statReservations">...</span></li>
+          <li>Upcoming Events: <span id="statEvents">...</span></li>
+        </ul>
+      </div>
+      <nav class="sidebar__nav">
+        <ul>
+          <li><a href="#tabBooks" class="sidebar__link" data-tab="books">Books Management</a></li>
+          <li><a href="#tabEvents" class="sidebar__link" data-tab="events">Events Management</a></li>
+          <li><a href="#tabRooms" class="sidebar__link" data-tab="rooms">Study Room Management</a></li>
+          <li><a href="#tabDiscounts" class="sidebar__link" data-tab="discounts">Discount Management</a></li>
+          <li><a href="#tabUsers" class="sidebar__link" data-tab="users">User Management</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-content">
+      <!-- Tabs -->
+      <div class="tabs">
+        <!-- Books Management -->
+        <section id="tabBooks" class="tab-content">
+          <h2>Books Management</h2>
+          <button class="btn btn--primary" id="addBookBtn">Add New Book</button>
+          <div id="booksList"></div>
+        </section>
+        <!-- Events Management -->
+        <section id="tabEvents" class="tab-content hidden">
+          <h2>Events Management</h2>
+          <button class="btn btn--primary" id="addEventBtn">Create New Event</button>
+          <div id="eventsList"></div>
+        </section>
+        <!-- Study Room Management -->
+        <section id="tabRooms" class="tab-content hidden">
+          <h2>Study Room Management</h2>
+          <button class="btn btn--primary" id="addRoomBtn">Add New Room</button>
+          <div id="roomsList"></div>
+        </section>
+        <!-- Discount Management -->
+        <section id="tabDiscounts" class="tab-content hidden">
+          <h2>Discount Management</h2>
+          <button class="btn btn--primary" id="addDiscountBtn">Create Discount</button>
+          <div id="discountsList"></div>
+        </section>
+        <!-- User Management -->
+        <section id="tabUsers" class="tab-content hidden">
+          <h2>User Management</h2>
+          <button class="btn btn--primary" id="addUserBtn">Add New User</button>
+          <div id="usersList"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Placeholder -->
+  <div id="adminModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close" id="closeAdminModal">&times;</span>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    // Sidebar tab switching
+    document.querySelectorAll('.sidebar__link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const tab = link.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
+        document.getElementById(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
+      });
+    });
+
+    // Load metrics
+    async function loadStats() {
+      const stats = await apiGet('/api/admin/stats');
+      document.getElementById('statTotalBooks').textContent = stats.total_books;
+      document.getElementById('statBorrowedBooks').textContent = stats.borrowed_books;
+      document.getElementById('statOverdue').textContent = stats.overdue_rentals;
+      document.getElementById('statReservations').textContent = stats.active_reservations;
+      document.getElementById('statEvents').textContent = stats.upcoming_events;
+    }
+
+    // Placeholder load lists
+    async function loadLists() {
+      // booksList, eventsList, roomsList, discountsList, usersList
+      // Each call to /api/admin/books, /events, /rooms, /discounts, /users
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStats();
+      loadLists();
+    });
+  </script>
+</body>
+</html>
