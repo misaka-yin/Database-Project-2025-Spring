@@ -3,7 +3,7 @@ const path = require('path');
 
 // ensure your `data/` folder exists
 const db = new sqlite3.Database(
-	path.join(__dirname, 'data', 'cgy_pal.db'),
+	path.join(__dirname, '.', 'cgy_pal.db'),
 	sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
 	err => {
 		if (err) return console.error('Database open error', err);

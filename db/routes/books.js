@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('./database');
+const db = require('../database');
 
 router.get('/search', (req, res) => {
 	const { isbn, author, title, sortBy, sortOrder } = req.query;
@@ -42,3 +42,5 @@ router.get('/search', (req, res) => {
 		res.json({ books: rows });
 	});
 });
+
+module.exports = router;
