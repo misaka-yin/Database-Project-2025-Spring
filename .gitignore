@@ -137,6 +137,17 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# SQLite journal files
 *.db-journal
 *.sqlite-journal
 *.sqlite3-journal
+
+# SQLite WAL (Write-Ahead Log) files
+*.db-wal
+*.sqlite-wal
+*.sqlite3-wal
+
+# SQLite shared memory files
+*.db-shm
+*.sqlite-shm
+*.sqlite3-shm
