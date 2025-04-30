@@ -1,0 +1,14 @@
+{
+  "name": "cgy-database-frontend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "scripts": {
+    "test": "http-server -a localhost ./public"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
