@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - PAL Library</title>
+  <!-- Reset & Custom Styles -->
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
 </head>
 <body id="admin">
   <!-- Header -->
@@ -37,6 +40,10 @@
           <li>Upcoming Events: <span id="statEvents">...</span></li>
         </ul>
       </div>
+      <!-- Chart Canvas -->
+      <div class="sidebar__chart">
+        <canvas id="statsChart" width="400" height="200"></canvas>
+      </div>
       <nav class="sidebar__nav">
         <ul>
           <li><a href="#tabBooks" class="sidebar__link" data-tab="books">Books Management</a></li>
@@ -50,82 +57,126 @@
 
     <!-- Main Content -->
     <main class="admin-content">
-      <!-- Tabs -->
       <div class="tabs">
         <!-- Books Management -->
         <section id="tabBooks" class="tab-content">
           <h2>Books Management</h2>
           <button class="btn btn--primary" id="addBookBtn">Add New Book</button>
-          <div id="booksList"></div>
+          <table id="booksList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>ISBN</th>
+                <th>Title</th>
+                <th>Authors</th>
+                <th>Topic</th>
+                <th>Total Copies</th>
+                <th>Available Copies</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
+
         <!-- Events Management -->
         <section id="tabEvents" class="tab-content hidden">
           <h2>Events Management</h2>
           <button class="btn btn--primary" id="addEventBtn">Create New Event</button>
-          <div id="eventsList"></div>
+          <table id="eventsList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>Event ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
+
         <!-- Study Room Management -->
         <section id="tabRooms" class="tab-content hidden">
           <h2>Study Room Management</h2>
           <button class="btn btn--primary" id="addRoomBtn">Add New Room</button>
-          <div id="roomsList"></div>
+          <table id="roomsList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>Room ID</th>
+                <th>Capacity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
+
         <!-- Discount Management -->
         <section id="tabDiscounts" class="tab-content hidden">
           <h2>Discount Management</h2>
           <button class="btn btn--primary" id="addDiscountBtn">Create Discount</button>
-          <div id="discountsList"></div>
+          <table id="discountsList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>Discount ID</th>
+                <th>Method</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Invoice ID</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
+
         <!-- User Management -->
         <section id="tabUsers" class="tab-content hidden">
           <h2>User Management</h2>
           <button class="btn btn--primary" id="addUserBtn">Add New User</button>
-          <div id="usersList"></div>
+          <table id="usersList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
       </div>
     </main>
   </div>
 
-  <!-- Modal Placeholder -->
+  <!-- Modal for Editing -->
   <div id="adminModal" class="modal hidden">
     <div class="modal-content">
       <span class="close" id="closeAdminModal">&times;</span>
-      <div id="modalBody"></div>
+      <h3 id="modalTitle"></h3>
+      <div id="modalControls">
+        <button id="addRowBtn">Add Row</button>
+        <button id="deleteRowBtn" disabled>Delete Selected</button>
+      </div>
+      <div id="modalBody">
+        <table id="editTable" class="display" style="width:100%">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script src="js/main.js"></script>
-  <script>
-    // Sidebar tab switching
-    document.querySelectorAll('.sidebar__link').forEach(link => {
-      link.addEventListener('click', e => {
-        e.preventDefault();
-        const tab = link.dataset.tab;
-        document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
-        document.getElementById(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
-      });
-    });
-
-    // Load metrics
-    async function loadStats() {
-      const stats = await apiGet('/api/admin/stats');
-      document.getElementById('statTotalBooks').textContent = stats.total_books;
-      document.getElementById('statBorrowedBooks').textContent = stats.borrowed_books;
-      document.getElementById('statOverdue').textContent = stats.overdue_rentals;
-      document.getElementById('statReservations').textContent = stats.active_reservations;
-      document.getElementById('statEvents').textContent = stats.upcoming_events;
-    }
-
-    // Placeholder load lists
-    async function loadLists() {
-      // booksList, eventsList, roomsList, discountsList, usersList
-      // Each call to /api/admin/books, /events, /rooms, /discounts, /users
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      loadStats();
-      loadLists();
-    });
-  </script>
+  <script src="js/admin.js"></script>
 </body>
 </html>
