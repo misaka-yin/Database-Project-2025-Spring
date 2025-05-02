@@ -69,3 +69,19 @@ cursor: pointer;
 }
 
 
+.table-container {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  background-color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  overflow-x: auto; /* Allows horizontal scrolling for small screens */
+}
+ 
+.rentals-container, .invoices-container {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}

@@ -1,13 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PAL Library My Rentals</title>
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      /* Smaller font size for tables */
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    .rentals__filters,
+    .invoices__filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+
+    .pagination {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    .pagination button {
+      padding: 5px 10px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+
+    .pagination button.active {
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal__content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .section-title {
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .status-borrowed {
+      color: #007bff;
+      font-weight: bold;
+    }
+
+    .status-returned {
+      color: #28a745;
+    }
+
+    .status-late {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .status-outstanding {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .status-completed {
+      color: #28a745;
+    }
+
+    /* Container styles */
+    .table-container {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      overflow-x: auto;
+      /* Allows horizontal scrolling for small screens */
+    }
+
+    .rentals-container,
+    .invoices-container {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+  </style>
 </head>
-<body>
+
+<body id="rentals">
   <!-- Header -->
   <header class="header">
     <div class="header__container">
@@ -23,67 +156,102 @@
           <li><a href="inventory.html" class="nav__link">Inventory</a></li>
           <li><a href="rentals.html" class="nav__link nav__link--active">My Rentals</a></li>
           <li><a href="events.html" class="nav__link">Events</a></li>
-          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+          <li><a href="reservations.html" class="nav__link">Reservations</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
   <main>
-    <section id="rentals" class="section">
+    <section id="rentals-section" class="section">
       <h1 class="section__title">My Rentals</h1>
 
-      <!-- Filters -->
-      <div class="rentals__filters">
-        <input type="text" id="rentalSearch" placeholder="Filter by Rental ID, Title, or Status..." />
-        <select id="statusFilter">
-          <option value="">All Status</option>
-          <option value="Borrowed">Borrowed</option>
-          <option value="Returned">Returned</option>
-          <option value="Late">Late</option>
-        </select>
+      <div class="rentals-container">
+        <!-- Rentals Filters -->
+        <div class="rentals__filters">
+          <input type="text" id="rentalSearch" placeholder="Filter by Rental ID, Title, or ISBN..." />
+          <select id="statusFilter">
+            <option value="">All Status</option>
+            <option value="BORROWED">Borrowed</option>
+            <option value="RETURNED">Returned</option>
+            <option value="LATE">Late</option>
+          </select>
+        </div>
+
+        <!-- Rentals Table -->
+        <div class="table-container">
+          <table id="rentalsTable" class="table">
+            <thead>
+              <tr>
+                <th>Rental ID</th>
+                <th>Book ID</th>
+                <th>Book Title</th>
+                <th>ISBN</th>
+                <th>Expected Return Date</th>
+                <th>Actual Return Date</th>
+                <th>Status</th>
+                <th>Invoice</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Rentals Pagination -->
+        <div id="rentalsPagination" class="pagination">
+          <!-- Pagination buttons added by JS -->
+        </div>
       </div>
 
-      <!-- Rentals Table -->
-    <table id="rentalsTable" class="table">
-        <thead>
-        <tr>
-            <th>Rental ID</th>
-            <th>Book ID</th>
-            <th>Title</th>
-            <th>Borrow Date</th>
-            <th>Expected Return</th>
-            <th>Actual Return</th>
-            <th>Status</th>
-            <th>Invoice</th>
-            <th>Payment</th>
-            <th>Action</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- Rows populated by JS -->
-        </tbody>
-    </table>
+      <!-- Invoices Section -->
+      <h2 class="section-title">Invoice Details</h2>
+
+      <div class="invoices-container">
+        <!-- Invoices Filters -->
+        <div class="invoices__filters">
+          <select id="invoiceStatusFilter">
+            <option value="">All Status</option>
+            <option value="OUTSTANDING">Outstanding</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+        </div>
+
+        <!-- Invoices Table -->
+        <div class="table-container">
+          <table id="invoicesTable" class="table">
+            <thead>
+              <tr>
+                <th>Invoice ID</th>
+                <th>Rental ID</th>
+                <th>Date</th>
+                <th>Invoice Amount</th>
+                <th>Payment Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Invoices Pagination -->
+        <div id="invoicesPagination" class="pagination">
+          <!-- Pagination buttons added by JS -->
+        </div>
+      </div>
     </section>
 
-    <!-- Return Modal -->
-    <div id="returnModal" class="modal hidden">
-      <div class="modal__content">
-        <h2>Confirm Return</h2>
-        <p>Are you sure you want to return this book?</p>
-        <button id="confirmReturnBtn" class="btn btn--primary">Yes, Return</button>
-        <button onclick="closeModal()" class="btn btn--secondary">Cancel</button>
-      </div>
-    </div>
-
-    <!-- Invoice Modal -->
-    <div id="invoiceModal" class="modal hidden">
+    <!-- Invoice Details Modal -->
+    <div id="invoiceModal" class="modal">
       <div class="modal__content">
         <h2>Invoice Details</h2>
         <div id="invoiceDetails">
           <!-- Filled dynamically -->
         </div>
-        <button onclick="closeModal()" class="btn btn--primary">Close</button>
+        <button id="closeModalBtn" class="btn btn--primary">Close</button>
       </div>
     </div>
   </main>
@@ -98,92 +266,312 @@
   <!-- Scripts -->
   <script src="js/main.js"></script>
   <script>
-    let currentRentalId = null;
+    // Define apiGet function directly to ensure it's available
+    async function apiGet(path) {
+      console.log("Calling apiGet for path:", path);
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json();
+    }
 
+    // Define apiPost function directly
+    async function apiPost(path, data) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    // Pagination settings
+    const itemsPerPage = 10;
+    let currentRentalsPage = 1;
+    let currentInvoicesPage = 1;
+
+    // Data storage
+    let allRentals = [];
+    let allInvoices = [];
+
+    // Format date helper function
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    }
+
+    // Load rentals data
     async function loadRentals() {
       try {
+        console.log("Loading rentals...");
         const rentals = await apiGet('/api/rentals');
-        const tbody = document.querySelector('#rentalsTable tbody');
-        tbody.innerHTML = '';
-        rentals.forEach(rental => {
+        console.log("Rentals loaded:", rentals);
+
+        allRentals = rentals;
+        displayRentals();
+      } catch (e) {
+        console.error('Failed to load rentals', e);
+        document.querySelector('#rentalsTable tbody').innerHTML = '<tr><td colspan="8">Failed to load rentals. Please try again later.</td></tr>';
+      }
+    }
+
+    // Display rentals with pagination
+    function displayRentals() {
+      const tbody = document.querySelector('#rentalsTable tbody');
+      tbody.innerHTML = '';
+
+      // Apply filters
+      const searchTerm = document.getElementById('rentalSearch').value.toLowerCase();
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      const filteredRentals = allRentals.filter(rental => {
+        const matchSearch = !searchTerm ||
+          rental.rental_id.toString().includes(searchTerm) ||
+          rental.book_title.toLowerCase().includes(searchTerm) ||
+          (rental.isbn && rental.isbn.toLowerCase().includes(searchTerm));
+
+        const matchStatus = !statusFilter || rental.r_status === statusFilter;
+
+        return matchSearch && matchStatus;
+      });
+
+      // Calculate pagination
+      const startIndex = (currentRentalsPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const pageRentals = filteredRentals.slice(startIndex, endIndex);
+
+      // Display rentals
+      if (pageRentals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8">No rentals found.</td></tr>';
+      } else {
+        pageRentals.forEach(rental => {
           const row = document.createElement('tr');
+
+          // Determine status class
+          const statusClass = `status-${rental.r_status.toLowerCase()}`;
+
           row.innerHTML = `
             <td>${rental.rental_id}</td>
+            <td>${rental.book_id}</td>
             <td>${rental.book_title}</td>
-            <td>${rental.borrow_date}</td>
-            <td>${rental.expected_return_date}</td>
-            <td>${rental.actual_return_date || '-'}</td>
-            <td>${rental.status}</td>
+            <td>${rental.isbn || '-'}</td>
+            <td>${formatDate(rental.exp_rt_date)}</td>
+            <td>${formatDate(rental.act_rt_date)}</td>
+            <td class="${statusClass}">${rental.r_status}</td>
             <td>
-              ${rental.invoice_id ? `<button class="btn btn--secondary" onclick="viewInvoice(${rental.invoice_id})">View Invoice</button>` : '-'}
-            </td>
-            <td>
-              ${rental.status !== 'Returned' ? `<button class="btn btn--primary" onclick="openReturnModal(${rental.rental_id})">Return</button>` : `<button class="btn" disabled>Returned</button>`}
+              ${rental.inv_id ? `<button class="btn btn--secondary btn--small view-invoice-btn" data-id="${rental.inv_id}">View</button>` : '-'}
             </td>
           `;
           tbody.appendChild(row);
         });
-      } catch (e) {
-        console.error('Failed to load rentals', e);
+
+        // Attach event listeners to view invoice buttons
+        document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const invoiceId = btn.getAttribute('data-id');
+            viewInvoice(invoiceId);
+          });
+        });
       }
+
+      // Update pagination
+      renderPagination(filteredRentals.length, currentRentalsPage, 'rentals');
     }
 
-    // Filter
-    document.getElementById('rentalSearch').addEventListener('input', applyFilters);
-    document.getElementById('statusFilter').addEventListener('change', applyFilters);
-
-    function applyFilters() {
-      const search = document.getElementById('rentalSearch').value.toLowerCase();
-      const status = document.getElementById('statusFilter').value;
-      document.querySelectorAll('#rentalsTable tbody tr').forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const matchSearch = text.includes(search);
-        const matchStatus = !status || row.children[5].textContent === status;
-        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
-      });
-    }
-
-    // Modal Controls
-    function openReturnModal(rentalId) {
-      currentRentalId = rentalId;
-      document.getElementById('returnModal').classList.remove('hidden');
-    }
-
-    async function confirmReturn() {
-      if (!currentRentalId) return;
+    // Load invoices data
+    async function loadInvoices() {
       try {
-        await apiPost(`/api/rentals/${currentRentalId}/return`, {});
-        closeModal();
-        loadRentals();
+        console.log("Loading invoices...");
+        const invoices = await apiGet('/api/invoices');
+        console.log("Invoices loaded:", invoices);
+
+        allInvoices = invoices;
+        displayInvoices();
       } catch (e) {
-        console.error('Failed to return rental', e);
+        console.error('Failed to load invoices', e);
+        document.querySelector('#invoicesTable tbody').innerHTML = '<tr><td colspan="6">Failed to load invoices. Please try again later.</td></tr>';
       }
     }
 
-    function viewInvoice(invoiceId) {
-      document.getElementById('invoiceModal').classList.remove('hidden');
-      const detailsDiv = document.getElementById('invoiceDetails');
-      detailsDiv.innerHTML = '<p>Loading...</p>';
-      apiGet(`/api/invoices/${invoiceId}`).then(data => {
-        detailsDiv.innerHTML = `
-          <p>Invoice ID: ${data.invoice_id}</p>
-          <p>Invoice Date: ${data.invoice_date}</p>
-          <p>Invoice Amount: $${data.amount.toFixed(2)}</p>
-        `;
-      }).catch(e => {
-        detailsDiv.innerHTML = '<p>Failed to load invoice details.</p>';
+    // Display invoices with pagination
+    function displayInvoices() {
+      const tbody = document.querySelector('#invoicesTable tbody');
+      tbody.innerHTML = '';
+
+      // Apply status filter
+      const statusFilter = document.getElementById('invoiceStatusFilter').value;
+
+      const filteredInvoices = allInvoices.filter(invoice => {
+        return !statusFilter || invoice.status === statusFilter;
       });
+
+      // Calculate pagination
+      const startIndex = (currentInvoicesPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const pageInvoices = filteredInvoices.slice(startIndex, endIndex);
+
+      // Display invoices
+      if (pageInvoices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">No invoices found.</td></tr>';
+      } else {
+        pageInvoices.forEach(invoice => {
+          const row = document.createElement('tr');
+
+          // Determine status class
+          const statusClass = `status-${invoice.status.toLowerCase()}`;
+
+          row.innerHTML = `
+            <td>${invoice.inv_id}</td>
+            <td>${invoice.rental_id}</td>
+            <td>${formatDate(invoice.invoice_date)}</td>
+            <td>$${parseFloat(invoice.inv_amt).toFixed(2)}</td>
+            <td>$${parseFloat(invoice.pmt_amt || 0).toFixed(2)}</td>
+            <td class="${statusClass}">${invoice.status}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // Update pagination
+      renderPagination(filteredInvoices.length, currentInvoicesPage, 'invoices');
     }
 
+    // Render pagination
+    function renderPagination(totalItems, currentPage, type) {
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const paginationDiv = document.getElementById(`${type}Pagination`);
+      paginationDiv.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.textContent = i;
+        button.classList.toggle('active', i === currentPage);
+
+        button.addEventListener('click', () => {
+          if (type === 'rentals') {
+            currentRentalsPage = i;
+            displayRentals();
+          } else if (type === 'invoices') {
+            currentInvoicesPage = i;
+            displayInvoices();
+          }
+        });
+
+        paginationDiv.appendChild(button);
+      }
+    }
+
+    // View invoice details
+    async function viewInvoice(invoiceId) {
+      try {
+        const invoiceDetails = await apiGet(`/api/invoices/${invoiceId}/details`);
+        console.log("Invoice details:", invoiceDetails);
+
+        const detailsDiv = document.getElementById('invoiceDetails');
+
+        // Basic invoice info
+        let html = `
+          <div class="invoice-header">
+            <p><strong>Invoice ID:</strong> ${invoiceDetails.invoice.inv_id}</p>
+            <p><strong>Rental ID:</strong> ${invoiceDetails.invoice.rental_id}</p>
+            <p><strong>Date:</strong> ${formatDate(invoiceDetails.invoice.invoice_date)}</p>
+            <p><strong>Amount:</strong> $${parseFloat(invoiceDetails.invoice.inv_amt).toFixed(2)}</p>
+            <p><strong>Status:</strong> <span class="status-${invoiceDetails.invoice.status.toLowerCase()}">${invoiceDetails.invoice.status}</span></p>
+          </div>
+        `;
+
+        // Payment details if available
+        if (invoiceDetails.payments && invoiceDetails.payments.length > 0) {
+          html += `
+            <h3 style="margin-top: 15px;">Payment History</h3>
+            <table class="table" style="margin-top: 10px;">
+              <thead>
+                <tr>
+                  <th>Payment ID</th>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Payee</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          invoiceDetails.payments.forEach(payment => {
+            html += `
+              <tr>
+                <td>${payment.pmt_id}</td>
+                <td>${formatDate(payment.pmt_date)}</td>
+                <td>${payment.pmt_method}</td>
+                <td>${payment.payee_fname} ${payment.payee_lname}</td>
+                <td>$${parseFloat(payment.pmt_amt).toFixed(2)}</td>
+              </tr>
+            `;
+          });
+
+          html += `
+              </tbody>
+            </table>
+          `;
+
+          // Add balance
+          const totalPaid = invoiceDetails.payments.reduce((sum, payment) => sum + parseFloat(payment.pmt_amt), 0);
+          const balance = parseFloat(invoiceDetails.invoice.inv_amt) - totalPaid;
+
+          html += `
+            <p style="margin-top: 15px; font-weight: bold; text-align: right;">
+              Balance: $${balance.toFixed(2)}
+            </p>
+          `;
+        } else {
+          html += `<p style="margin-top: 15px;">No payments have been made for this invoice.</p>`;
+        }
+
+        detailsDiv.innerHTML = html;
+
+        // Show modal
+        document.getElementById('invoiceModal').classList.add('active');
+      } catch (e) {
+        console.error('Failed to load invoice details', e);
+        alert('Failed to load invoice details. Please try again later.');
+      }
+    }
+
+    // Close modal
     function closeModal() {
-      document.getElementById('returnModal').classList.add('hidden');
-      document.getElementById('invoiceModal').classList.add('hidden');
-      currentRentalId = null;
+      document.getElementById('invoiceModal').classList.remove('active');
     }
 
-    document.getElementById('confirmReturnBtn').addEventListener('click', confirmReturn);
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM Content loaded - rentals.html");
 
-    window.addEventListener('DOMContentLoaded', loadRentals);
+      // Load data
+      loadRentals();
+      loadInvoices();
+
+      // Setup event listeners
+      document.getElementById('rentalSearch').addEventListener('input', () => {
+        currentRentalsPage = 1;
+        displayRentals();
+      });
+
+      document.getElementById('statusFilter').addEventListener('change', () => {
+        currentRentalsPage = 1;
+        displayRentals();
+      });
+
+      document.getElementById('invoiceStatusFilter').addEventListener('change', () => {
+        currentInvoicesPage = 1;
+        displayInvoices();
+      });
+
+      document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    });
   </script>
 </body>
+
 </html>

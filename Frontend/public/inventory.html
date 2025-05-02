@@ -1,12 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Inventory - PAL Library</title>
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      /* Smaller font size for tables */
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    .inventory__filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+      border: 1px solid #eee;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+    }
+
+    .filter-group label {
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+      align-self: flex-end;
+    }
+
+    .pagination {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    .pagination button {
+      padding: 5px 10px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+
+    .pagination button.active {
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .status-a {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .status-n {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    /* Container styles */
+    .table-container {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      overflow-x: auto;
+      /* Allows horizontal scrolling for small screens */
+    }
+
+    .inventory-container {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    /* Additional styles for filter summary */
+    .active-filters {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .active-filters span {
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    .filter-badge {
+      display: inline-block;
+      background-color: #e9ecef;
+      padding: 3px 8px;
+      border-radius: 12px;
+      margin-right: 5px;
+      font-size: 0.8rem;
+    }
+
+    .clear-filters {
+      color: #007bff;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+  </style>
 </head>
+
 <body id="inventory">
   <!-- Header -->
   <header class="header">
@@ -23,7 +171,7 @@
           <li><a href="inventory.html" class="nav__link nav__link--active">Inventory</a></li>
           <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
           <li><a href="events.html" class="nav__link">Events</a></li>
-          <li><a href="reservations.html" class="nav__link nav__link--active">Reservations</a></li>
+          <li><a href="reservations.html" class="nav__link">Reservations</a></li>
         </ul>
       </nav>
     </div>
@@ -33,30 +181,76 @@
     <section class="section inventory">
       <h1 class="section__title">Book Inventory</h1>
 
-      <!-- Filters -->
-      <div class="inventory__filters">
-        <select id="statusFilter">
-          <option value="">All Status</option>
-          <option value="Available">Available</option>
-          <option value="Not Available">Not Available</option>
-        </select>
-      </div>
+      <div class="inventory-container">
+        <!-- Filters -->
+        <div class="inventory__filters">
+          <div class="filter-group">
+            <label for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="">All Statuses</option>
+              <option value="A">Available</option>
+              <option value="N">Not Available</option>
+            </select>
+          </div>
 
-      <!-- Inventory Table -->
-      <table class="table" id="inventoryTable">
-        <thead>
-          <tr>
-            <th>Copy ID</th>
-            <th>ISBN</th>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Table body will be populated dynamically -->
-        </tbody>
-      </table>
+          <div class="filter-group">
+            <label for="authorFilter">Author</label>
+            <select id="authorFilter">
+              <option value="">All Authors</option>
+              <!-- Will be populated dynamically -->
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="topicFilter">Topic</label>
+            <select id="topicFilter">
+              <option value="">All Topics</option>
+              <!-- Will be populated dynamically -->
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="titleFilter">Title</label>
+            <input type="text" id="titleFilter" placeholder="Search by title...">
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn--primary" id="applyFiltersBtn">Apply Filters</button>
+            <button class="btn btn--secondary" id="clearFiltersBtn">Clear Filters</button>
+          </div>
+        </div>
+
+        <!-- Active filters summary (shown only when filters are applied) -->
+        <div class="active-filters" id="activeFilters" style="display: none;">
+          <strong>Active Filters:</strong>
+          <span id="activeFiltersList"></span>
+          <a href="#" class="clear-filters" id="clearFiltersLink">Clear All</a>
+        </div>
+
+        <!-- Inventory Table -->
+        <div class="table-container">
+          <table class="table" id="inventoryTable">
+            <thead>
+              <tr>
+                <th>Copy ID</th>
+                <th>ISBN</th>
+                <th>Title</th>
+                <th>Topic</th>
+                <th>Author(s)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Table body will be populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="inventoryPagination" class="pagination">
+          <!-- Pagination buttons will be added dynamically -->
+        </div>
+      </div>
     </section>
   </main>
 
@@ -68,43 +262,291 @@
 
   <script src="js/main.js"></script>
   <script>
+    // Define apiGet function directly to ensure it's available
+    async function apiGet(path) {
+      console.log("Calling apiGet for path:", path);
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json();
+    }
+
+    // Pagination settings
+    const itemsPerPage = 10;
+    let currentPage = 1;
+
+    // Data storage
+    let allBooks = [];
+    let authors = [];
+    let topics = [];
+
+    // Filter state
+    const filters = {
+      status: '',
+      author: '',
+      topic: '',
+      title: ''
+    };
+
+    // Load inventory data
     async function loadInventory() {
       try {
-        const copies = await apiGet('/api/inventory');
-        const tbody = document.querySelector('#inventoryTable tbody');
-        tbody.innerHTML = '';
+        console.log("Loading inventory...");
 
-        copies.forEach(copy => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${copy.copy_id}</td>
-            <td>${copy.isbn}</td>
-            <td>${copy.title}</td>
-            <td>${copy.status}</td>
-            <td>
-              <button class="btn btn--primary" ${copy.status !== 'Available' ? 'disabled' : ''}>
-                Rent
-              </button>
-            </td>
-          `;
-          tbody.appendChild(row);
-        });
+        // Load all inventory data
+        const books = await apiGet('/api/inventory/books');
+        console.log("Books loaded:", books);
+
+        allBooks = books;
+
+        // Extract unique authors and topics for filter dropdowns
+        populateFilters(books);
+
+        // Display books with pagination
+        displayBooks();
       } catch (e) {
         console.error('Failed to load inventory', e);
+        document.querySelector('#inventoryTable tbody').innerHTML = '<tr><td colspan="6">Failed to load inventory. Please try again later.</td></tr>';
       }
     }
 
-    function applyFilters() {
-      const status = document.getElementById('statusFilter').value;
-      document.querySelectorAll('#inventoryTable tbody tr').forEach(row => {
-        const matchStatus = !status || row.children[3].textContent === status;
-        row.style.display = matchStatus ? '' : 'none';
+    // Populate filter dropdowns
+    function populateFilters(books) {
+      // Extract unique authors
+      const authorSet = new Set();
+      books.forEach(book => {
+        if (book.authors) {
+          book.authors.forEach(author => {
+            authorSet.add(JSON.stringify(author)); // Convert object to string to use as Set key
+          });
+        }
+      });
+
+      // Convert back to objects and sort by last name
+      authors = Array.from(authorSet).map(a => JSON.parse(a))
+        .sort((a, b) => a.last_name.localeCompare(b.last_name));
+
+      // Populate author dropdown
+      const authorFilter = document.getElementById('authorFilter');
+      authors.forEach(author => {
+        const option = document.createElement('option');
+        option.value = author.author_id;
+        option.textContent = `${author.last_name}, ${author.first_name}`;
+        authorFilter.appendChild(option);
+      });
+
+      // Extract unique topics
+      const topicSet = new Set();
+      books.forEach(book => {
+        if (book.topic) {
+          topicSet.add(JSON.stringify(book.topic)); // Convert object to string to use as Set key
+        }
+      });
+
+      // Convert back to objects and sort by topic description
+      topics = Array.from(topicSet).map(t => JSON.parse(t))
+        .sort((a, b) => a.topic_des.localeCompare(b.topic_des));
+
+      // Populate topic dropdown
+      const topicFilter = document.getElementById('topicFilter');
+      topics.forEach(topic => {
+        const option = document.createElement('option');
+        option.value = topic.topic_id;
+        option.textContent = topic.topic_des;
+        topicFilter.appendChild(option);
       });
     }
 
-    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    // Display books with pagination and filters
+    function displayBooks() {
+      const tbody = document.querySelector('#inventoryTable tbody');
+      tbody.innerHTML = '';
 
-    window.addEventListener('DOMContentLoaded', loadInventory);
+      // Apply filters
+      const filteredBooks = allBooks.filter(book => {
+        // Status filter
+        if (filters.status && book.bk_status !== filters.status) {
+          return false;
+        }
+
+        // Author filter
+        if (filters.author && (!book.authors || !book.authors.some(a => a.author_id.toString() === filters.author))) {
+          return false;
+        }
+
+        // Topic filter
+        if (filters.topic && (!book.topic || book.topic.topic_id.toString() !== filters.topic)) {
+          return false;
+        }
+
+        // Title filter (case-insensitive partial match)
+        if (filters.title && !book.bk_name.toLowerCase().includes(filters.title.toLowerCase())) {
+          return false;
+        }
+
+        return true;
+      });
+
+      // Calculate pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const pageBooks = filteredBooks.slice(startIndex, endIndex);
+
+      // Display books
+      if (pageBooks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">No books found matching the selected filters.</td></tr>';
+      } else {
+        pageBooks.forEach(book => {
+          const row = document.createElement('tr');
+
+          // Format authors
+          let authorsText = '';
+          if (book.authors && book.authors.length > 0) {
+            authorsText = book.authors.map(a => `${a.last_name}, ${a.first_name}`).join('; ');
+          } else {
+            authorsText = 'N/A';
+          }
+
+          // Format status
+          const statusText = book.bk_status === 'A' ? 'Available' : 'Not Available';
+          const statusClass = `status-${book.bk_status.toLowerCase()}`;
+
+          row.innerHTML = `
+            <td>${book.book_id}</td>
+            <td>${book.isbn || 'N/A'}</td>
+            <td>${book.bk_name}</td>
+            <td>${book.topic ? book.topic.topic_des : 'N/A'}</td>
+            <td>${authorsText}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // Update pagination
+      renderPagination(filteredBooks.length);
+
+      // Update active filters display
+      updateActiveFiltersDisplay();
+    }
+
+    // Render pagination
+    function renderPagination(totalItems) {
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const paginationDiv = document.getElementById('inventoryPagination');
+      paginationDiv.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.textContent = i;
+        button.classList.toggle('active', i === currentPage);
+
+        button.addEventListener('click', () => {
+          currentPage = i;
+          displayBooks();
+        });
+
+        paginationDiv.appendChild(button);
+      }
+    }
+
+    // Update active filters display
+    function updateActiveFiltersDisplay() {
+      const activeFiltersDiv = document.getElementById('activeFilters');
+      const activeFiltersList = document.getElementById('activeFiltersList');
+
+      // Check if any filters are active
+      const hasActiveFilters = Object.values(filters).some(f => f);
+
+      if (!hasActiveFilters) {
+        activeFiltersDiv.style.display = 'none';
+        return;
+      }
+
+      // Show active filters section
+      activeFiltersDiv.style.display = 'block';
+      activeFiltersList.innerHTML = '';
+
+      // Display status filter
+      if (filters.status) {
+        const statusText = filters.status === 'A' ? 'Available' : 'Not Available';
+        const span = document.createElement('span');
+        span.innerHTML = `Status: <span class="filter-badge">${statusText}</span>`;
+        activeFiltersList.appendChild(span);
+      }
+
+      // Display author filter
+      if (filters.author) {
+        const author = authors.find(a => a.author_id.toString() === filters.author);
+        if (author) {
+          const span = document.createElement('span');
+          span.innerHTML = `Author: <span class="filter-badge">${author.last_name}, ${author.first_name}</span>`;
+          activeFiltersList.appendChild(span);
+        }
+      }
+
+      // Display topic filter
+      if (filters.topic) {
+        const topic = topics.find(t => t.topic_id.toString() === filters.topic);
+        if (topic) {
+          const span = document.createElement('span');
+          span.innerHTML = `Topic: <span class="filter-badge">${topic.topic_des}</span>`;
+          activeFiltersList.appendChild(span);
+        }
+      }
+
+      // Display title filter
+      if (filters.title) {
+        const span = document.createElement('span');
+        span.innerHTML = `Title: <span class="filter-badge">${filters.title}</span>`;
+        activeFiltersList.appendChild(span);
+      }
+    }
+
+    // Apply filters when button is clicked
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+      filters.status = document.getElementById('statusFilter').value;
+      filters.author = document.getElementById('authorFilter').value;
+      filters.topic = document.getElementById('topicFilter').value;
+      filters.title = document.getElementById('titleFilter').value;
+
+      // Reset to first page when filters change
+      currentPage = 1;
+      displayBooks();
+    });
+
+    // Clear all filters
+    function clearFilters() {
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('authorFilter').value = '';
+      document.getElementById('topicFilter').value = '';
+      document.getElementById('titleFilter').value = '';
+
+      // Reset filter state
+      filters.status = '';
+      filters.author = '';
+      filters.topic = '';
+      filters.title = '';
+
+      // Reset to first page
+      currentPage = 1;
+      displayBooks();
+    }
+
+    // Clear filters button event handlers
+    document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+    document.getElementById('clearFiltersLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      clearFilters();
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM Content loaded - inventory.html");
+      loadInventory();
+    });
   </script>
 </body>
+
 </html>

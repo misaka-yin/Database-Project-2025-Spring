@@ -1,6 +1,7 @@
 var express = require('express');
 const db = require('./database');
 var path = require('path');
+const PORT = process.env.PORT || 3000;
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
@@ -15,7 +16,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../Frontend/public')));
 
 // app.use('/', indexRouter);
 // app.use('/users', usersRouter);
