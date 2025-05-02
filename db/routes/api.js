@@ -2,16 +2,16 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
-// const path = require('path');
-// const app = express();
-// const PORT = process.env.PORT || 3000;
+//const path = require('path');
+//const app = express();
+//const PORT = process.env.PORT || 3000;
 
 // Middleware for parsing JSON and urlencoded form data
 router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 
 // Serve static files
-router.use(express.static('Frontend'));
+//router.use(express.static(path.join(__dirname, '../../Frontend/public')));
 
 // Mock user authentication (in a real app, use proper authentication)
 // For demo purposes, we'll assume user is logged in with ID 1001
@@ -446,6 +446,277 @@ router.get('/events/:id/sponsors', (req, res) => {
 });
 
 
+ // Get all rentals for the logged-in user
+ router.get('/rentals', (req, res) => {
+	// In a real application, use actual user authentication
+	// Here we're using the mock logged-in user ID
+	const customerId = LOGGED_IN_USER_ID;
+	
+	const sql = `
+	  SELECT 
+		r.RENTAL_ID as rental_id,
+		r.R_STATUS as r_status,
+		r.BORROW_DATE as borrow_date,
+		r.EXP_RT_DATE as exp_rt_date,
+		r.ACT_RT_DATE as act_rt_date,
+		r.BOOK_ID as book_id,
+		r.INV_ID as inv_id,
+		b.BK_NAME as book_title,
+		b.ISBN as isbn
+	  FROM CGY_RENTAL r
+	  LEFT JOIN CGY_BOOK_INV bi ON r.BOOK_ID = bi.BOOK_ID
+	  LEFT JOIN CGY_BOOK b ON bi.ISBN = b.ISBN
+	  WHERE r.CUSTOMER_ID = ?
+	  ORDER BY 
+		CASE r.R_STATUS
+		  WHEN 'LATE' THEN 1
+		  WHEN 'BORROWED' THEN 2
+		  WHEN 'RETURNED' THEN 3
+		END,
+		r.BORROW_DATE DESC
+	`;
+	
+	db.all(sql, [customerId], (err, rows) => {
+	  if (err) {
+		console.error('Error fetching rentals:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  console.log(`Found ${rows.length} rentals for customer ${customerId}`);
+	  res.json(rows);
+	});
+  });
+  
+  // Get all invoices for the logged-in user
+  router.get('/invoices', (req, res) => {
+	// In a real application, use actual user authentication
+	// Here we're using the mock logged-in user ID
+	const customerId = LOGGED_IN_USER_ID;
+	
+	const sql = `
+	  SELECT 
+		i.INV_ID as inv_id,
+		i.RENTAL_ID as rental_id,
+		i.INVOICE_DATE as invoice_date,
+		i.INV_AMT as inv_amt,
+		COALESCE(SUM(p.PMT_AMT), 0) as pmt_amt,
+		CASE 
+		  WHEN COALESCE(SUM(p.PMT_AMT), 0) >= i.INV_AMT THEN 'COMPLETED'
+		  ELSE 'OUTSTANDING'
+		END as status
+	  FROM CGY_INVOICE i
+	  LEFT JOIN CGY_PAYMENT p ON i.INV_ID = p.INV_ID
+	  INNER JOIN CGY_RENTAL r ON i.RENTAL_ID = r.RENTAL_ID
+	  WHERE r.CUSTOMER_ID = ?
+	  GROUP BY i.INV_ID
+	  ORDER BY i.INVOICE_DATE DESC
+	`;
+	
+	db.all(sql, [customerId], (err, rows) => {
+	  if (err) {
+		console.error('Error fetching invoices:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  console.log(`Found ${rows.length} invoices for customer ${customerId}`);
+	  res.json(rows);
+	});
+  });
+  
+  // Get invoice details including payments
+  router.get('/invoices/:id/details', (req, res) => {
+	const invoiceId = req.params.id;
+	const customerId = LOGGED_IN_USER_ID;
+	
+	// First check if this invoice belongs to the logged-in user
+	const checkSql = `
+	  SELECT i.*, r.CUSTOMER_ID
+	  FROM CGY_INVOICE i
+	  INNER JOIN CGY_RENTAL r ON i.RENTAL_ID = r.RENTAL_ID
+	  WHERE i.INV_ID = ? AND r.CUSTOMER_ID = ?
+	`;
+	
+	db.get(checkSql, [invoiceId, customerId], (err, invoice) => {
+	  if (err) {
+		console.error('Error checking invoice ownership:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  if (!invoice) {
+		return res.status(404).json({ error: 'Invoice not found or you do not have permission to view it' });
+	  }
+	  
+	  // Now get the payments for this invoice
+	  const paymentsSql = `
+		SELECT *
+		FROM CGY_PAYMENT
+		WHERE INV_ID = ?
+		ORDER BY PMT_DATE DESC
+	  `;
+	  
+	  db.all(paymentsSql, [invoiceId], (err, payments) => {
+		if (err) {
+		  console.error('Error fetching payments:', err.message);
+		  return res.status(500).json({ error: err.message });
+		}
+		
+		// Calculate total payments
+		const totalPaid = payments.reduce((sum, payment) => sum + payment.PMT_AMT, 0);
+		
+		// Add status to invoice
+		invoice.status = totalPaid >= invoice.INV_AMT ? 'COMPLETED' : 'OUTSTANDING';
+		
+		res.json({
+		  invoice: {
+			inv_id: invoice.INV_ID,
+			rental_id: invoice.RENTAL_ID,
+			invoice_date: invoice.INVOICE_DATE,
+			inv_amt: invoice.INV_AMT,
+			status: invoice.status
+		  },
+		  payments: payments.map(payment => ({
+			pmt_id: payment.PMT_ID,
+			pmt_method: payment.PMT_METHOD,
+			pmt_date: payment.PMT_DATE,
+			payee_fname: payment.PAYEE_FNAME,
+			payee_lname: payment.PAYEE_LNAME,
+			pmt_amt: payment.PMT_AMT
+		  }))
+		});
+	  });
+	});
+  }); 
+  
+  // Get all books with inventory information
+  router.get('/inventory/books', (req, res) => {
+	const sql = `
+	  SELECT 
+		bi.BOOK_ID as book_id,
+		bi.BK_STATUS as bk_status,
+		bi.ISBN as isbn,
+		b.BK_NAME as bk_name,
+		t.TOPIC_ID as topic_id,
+		t.TOPIC_DES as topic_des
+	  FROM CGY_BOOK_INV bi
+	  LEFT JOIN CGY_BOOK b ON bi.ISBN = b.ISBN
+	  LEFT JOIN CGY_TOPIC t ON b.TOPIC_ID = t.TOPIC_ID
+	  ORDER BY b.BK_NAME
+	`;
+	
+	db.all(sql, [], (err, rows) => {
+	  if (err) {
+		console.error('Error fetching book inventory:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  // Get unique ISBNs to fetch authors
+	  const isbns = [...new Set(rows.filter(r => r.isbn).map(r => r.isbn))];
+	  
+	  if (isbns.length === 0) {
+		// No books with ISBNs found, return the rows without authors
+		return res.json(rows.map(row => ({
+		  book_id: row.book_id,
+		  bk_status: row.bk_status,
+		  isbn: row.isbn,
+		  bk_name: row.bk_name,
+		  topic: row.topic_id ? {
+			topic_id: row.topic_id,
+			topic_des: row.topic_des
+		  } : null,
+		  authors: []
+		})));
+	  }
+	  
+	  // Query to get authors for each book
+	  const placeholders = isbns.map(() => '?').join(',');
+	  const authorsSql = `
+		SELECT 
+		  ba.ISBN,
+		  ba.AUTHOR_ID,
+		  ba.CONTRI_ROLE,
+		  a.A_FNAME as first_name,
+		  a.A_LNAME as last_name
+		FROM CGY_BK_AUT ba
+		JOIN CGY_AUTHOR a ON ba.AUTHOR_ID = a.AUTHOR_ID
+		WHERE ba.ISBN IN (${placeholders})
+	  `;
+	  
+	  db.all(authorsSql, isbns, (err, authorRows) => {
+		if (err) {
+		  console.error('Error fetching book authors:', err.message);
+		  return res.status(500).json({ error: err.message });
+		}
+		
+		// Group authors by ISBN
+		const authorsByISBN = {};
+		authorRows.forEach(ar => {
+		  if (!authorsByISBN[ar.ISBN]) {
+			authorsByISBN[ar.ISBN] = [];
+		  }
+		  authorsByISBN[ar.ISBN].push({
+			author_id: ar.AUTHOR_ID,
+			first_name: ar.first_name,
+			last_name: ar.last_name,
+			role: ar.CONTRI_ROLE
+		  });
+		});
+		
+		// Combine book data with authors
+		const booksWithAuthors = rows.map(row => {
+		  return {
+			book_id: row.book_id,
+			bk_status: row.bk_status,
+			isbn: row.isbn,
+			bk_name: row.bk_name,
+			topic: row.topic_id ? {
+			  topic_id: row.topic_id,
+			  topic_des: row.topic_des
+			} : null,
+			authors: row.isbn ? (authorsByISBN[row.isbn] || []) : []
+		  };
+		});
+		
+		console.log(`Found ${booksWithAuthors.length} books in inventory`);
+		res.json(booksWithAuthors);
+	  });
+	});
+  });
+  
+  // Get all topics
+  router.get('/topics', (req, res) => {
+	const sql = 'SELECT TOPIC_ID as topic_id, TOPIC_DES as topic_des FROM CGY_TOPIC ORDER BY TOPIC_DES';
+	
+	db.all(sql, [], (err, rows) => {
+	  if (err) {
+		console.error('Error fetching topics:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  res.json(rows);
+	});
+  });
+  
+  // Get all authors
+  router.get('/authors', (req, res) => {
+	const sql = `
+	  SELECT 
+		AUTHOR_ID as author_id, 
+		A_FNAME as first_name, 
+		A_LNAME as last_name,
+		EMAIL_ADDR as email
+	  FROM CGY_AUTHOR 
+	  ORDER BY A_LNAME, A_FNAME
+	`;
+	
+	db.all(sql, [], (err, rows) => {
+	  if (err) {
+		console.error('Error fetching authors:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  res.json(rows);
+	});
+  });
 
 // // Start the server
 // router.listen(PORT, () => {

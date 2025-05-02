@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./database');
 var path = require('path');
+const PORT = process.env.PORT || 3000;
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
