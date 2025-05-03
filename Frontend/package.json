@@ -9,6 +9,5 @@
     "test": "http-server -a localhost ./public"
   },
   "author": "",
-  "license": "ISC",
   "description": ""
 }
