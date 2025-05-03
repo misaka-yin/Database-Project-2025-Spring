@@ -731,4 +731,101 @@ router.get('/events/:id/sponsors', (req, res) => {
 //   });
 // });
 
-module.exports = router;
+//module.exports = router;
+
+router.get('/admin/stats', (req, res) => {
+	db.get(`
+	  SELECT
+		(SELECT COUNT(*) FROM CGY_BOOK_INV)             AS total_books,
+		(SELECT COUNT(*) FROM CGY_RENTAL WHERE R_STATUS='BORROWED') AS borrowed_books,
+		(SELECT COUNT(*) FROM CGY_RENTAL WHERE R_STATUS='LATE')     AS overdue,
+		(SELECT COUNT(*) FROM CGY_RM_RSV)               AS reservations,
+		(SELECT COUNT(*) FROM CGY_EVENTS WHERE DATE(START_DT) > DATE('now')) AS upcoming_events
+	`, (err, row) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json(row);
+	});
+  });
+  
+  // 2. BOOKS LIST (for DataTables)
+  router.get('/admin/books', (req, res) => {
+	db.all(`
+	  SELECT 
+		b.ISBN            AS isbn,
+		b.BK_NAME         AS title,
+		GROUP_CONCAT(a.A_FNAME || ' ' || a.A_LNAME) AS authors,
+		t.TOPIC_DES       AS topic,
+		COUNT(inv.BOOK_ID)                   AS total_copies,
+		SUM(CASE WHEN inv.BK_STATUS='A' THEN 1 ELSE 0 END) AS available_copies
+	  FROM CGY_BOOK b
+		JOIN CGY_BK_AUT  ba  ON b.ISBN   = ba.ISBN
+		JOIN CGY_AUTHOR a   ON ba.AUTHOR_ID = a.AUTHOR_ID
+		JOIN CGY_TOPIC t    ON b.TOPIC_ID   = t.TOPIC_ID
+		LEFT JOIN CGY_BOOK_INV inv ON b.ISBN = inv.ISBN
+	  GROUP BY b.ISBN
+	`, (err, rows) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json({ data: rows });   // DataTables expects { data: [...] }
+	});
+  });
+  
+  // 3. EVENTS LIST
+  router.get('/admin/events', (req, res) => {
+	db.all(`
+	  SELECT 
+		e.EVENT_ID   AS event_id,
+		e.EVENT_NAME AS event_name,
+		e.EVENT_TYPE AS event_type,
+		e.START_DT   AS start_dt,
+		e.END_DT     AS end_dt
+	  FROM CGY_EVENTS e
+	  ORDER BY e.START_DT DESC
+	`, [], (err, rows) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json({ data: rows });
+	});
+  });
+  
+  // 4. ROOMS LIST
+  router.get('/admin/rooms', (req, res) => {
+	db.all(`
+	  SELECT RM_ID   AS room_id,
+			 CAPACITY
+	  FROM CGY_STUDYRM
+	`, [], (err, rows) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json({ data: rows });
+	});
+  });
+  
+  // 5. DISCOUNTS LIST
+  router.get('/admin/discounts', (req, res) => {
+	db.all(`
+	  SELECT PMT_ID    AS discount_id,
+			 PMT_METHOD AS method,
+			 PMT_DATE   AS date,
+			 PMT_AMT    AS amount,
+			 INV_ID     AS invoice_id
+	  FROM CGY_PAYMENT
+	`, [], (err, rows) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json({ data: rows });
+	});
+  });
+  
+  // 6. USERS LIST
+  router.get('/admin/users', (req, res) => {
+	db.all(`
+	  SELECT CUSTOMER_ID AS user_id,
+			 C_FNAME     AS first_name,
+			 C_LNAME     AS last_name,
+			 EMAIL_ADDR  AS email,
+			 PHONE_NBR   AS phone
+	  FROM CGY_CUSTOMER
+	`, [], (err, rows) => {
+	  if (err) return res.status(500).json({ error: err.message });
+	  res.json({ data: rows });
+	});
+  });
+  
+  module.exports = router;

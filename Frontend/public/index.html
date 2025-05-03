@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Hero Section */
+    /* Hero Section Styles */
     .hero {
       position: relative;
       height: 100vh;
@@ -62,7 +62,7 @@
       color: #333;
     }
 
-    /* Form Actions */
+    /* Form Actions Container */
     .form-actions {
       margin-top: 1rem;
       display: flex;
@@ -72,7 +72,7 @@
   </style>
 </head>
 <body id="home">
-  <!-- Header -->
+  <!-- Header Section -->
   <header class="header">
     <div class="header__container">
       <a href="index.html" class="header__logo">
@@ -86,12 +86,13 @@
           <li><a href="reservations.html" class="nav__link">Reservations</a></li>
           <li><a href="rentals.html" class="nav__link">My Rentals</a></li>
           <li><a href="events.html" class="nav__link">Events</a></li>
+          <li><a href="admin.html" class="nav__link">Admin</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <!-- Hero -->
+  <!-- Hero Section -->
   <section class="hero">
     <div class="hero__overlay">
       <h1 class="hero__title" style="font-size: 3rem; margin-bottom: 0.5rem;">Welcome to PAL Library</h1>
@@ -108,11 +109,12 @@
     <div class="modal-content">
       <span class="modal-close" data-modal-close>&times;</span>
       <h2>Login to PAL Library</h2>
-      <form>
+      <!-- Login Form: collects user credentials -->
+      <form id="loginForm">
         <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" required placeholder="you@example.com">
+        <input type="email" id="loginEmail" name="email" required placeholder="you@example.com">
         <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" required placeholder="••••••••">
+        <input type="password" id="loginPassword" name="password" required placeholder="••••••••">
         <div class="form-actions">
           <button type="submit" class="btn btn--primary">Login</button>
           <a href="#" class="link">Forgot Password?</a>
@@ -126,17 +128,20 @@
     <div class="modal-content">
       <span class="modal-close" data-modal-close>&times;</span>
       <h2>Create an Account</h2>
-      <form>
+      <!-- Registration Form: collects user info and default role -->
+      <form id="registerForm">
         <label for="regFName">First Name</label>
-        <input type="text" id="regFName" required placeholder="First Name">
+        <input type="text" id="regFName" name="firstName" required placeholder="First Name">
         <label for="regLName">Last Name</label>
-        <input type="text" id="regLName" required placeholder="Last Name">
+        <input type="text" id="regLName" name="lastName" required placeholder="Last Name">
         <label for="regEmail">Email</label>
-        <input type="email" id="regEmail" required placeholder="you@example.com">
+        <input type="email" id="regEmail" name="email" required placeholder="you@example.com">
         <label for="regPassword">Password</label>
-        <input type="password" id="regPassword" required placeholder="••••••••">
+        <input type="password" id="regPassword" name="password" required placeholder="••••••••">
         <label for="regConfirm">Confirm Password</label>
-        <input type="password" id="regConfirm" required placeholder="••••••••">
+        <input type="password" id="regConfirm" name="confirmPassword" required placeholder="••••••••">
+        <!-- Hidden input to set default user role -->
+        <input type="hidden" name="role" value="user">
         <div class="form-actions">
           <button type="submit" class="btn btn--primary">Register</button>
         </div>
@@ -145,19 +150,82 @@
   </div>
 
   <script>
-    // Modal toggle logic
+    // Function to toggle modal visibility
     function toggleModal(modalId, show) {
       const modal = document.getElementById(modalId);
       modal.classList[show ? 'add' : 'remove']('active');
     }
+
+    // Open login modal on button click
     document.getElementById('loginBtn').addEventListener('click', () => toggleModal('loginModal', true));
+    // Open registration modal on button click
     document.getElementById('registerBtn').addEventListener('click', () => toggleModal('registerModal', true));
+    
+    // Close modals when clicking the close icon or outside the modal content
     document.querySelectorAll('[data-modal-close]').forEach(el => {
       el.addEventListener('click', () => toggleModal(el.closest('.modal').id, false));
     });
     window.addEventListener('click', e => {
       if (e.target.classList.contains('modal')) {
         e.target.classList.remove('active');
+      }
+    });
+
+    // Handle registration form submission via AJAX
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      // Gather form data
+      const data = {
+        firstName: form.firstName.value,
+        lastName:  form.lastName.value,
+        email:     form.email.value,
+        password:  form.password.value,
+        role:      form.role.value
+      };
+      try {
+        // Send POST request to backend API
+        const resp = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const body = await resp.json();
+        if (body.success) {
+          alert('Registration successful! Please log in.');
+          toggleModal('registerModal', false);
+        } else {
+          alert('Registration failed: ' + (body.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network error, please try again later.');
+      }
+    });
+
+    // Handle login form submission via AJAX
+    document.getElementById('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        email:    form.email.value,
+        password: form.password.value
+      };
+      try {
+        // Send POST request to backend API for login
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const body = await resp.json();
+        if (body.success) {
+          alert('Login successful! Redirecting...');
+          window.location.href = '/dashboard'; // Redirect after successful login
+        } else {
+          alert('Login failed: ' + (body.error || 'Invalid credentials'));
+        }
+      } catch (err) {
+        alert('Network error, please try again later.');
       }
     });
   </script>
