@@ -85,3 +85,53 @@ cursor: pointer;
   padding: 20px;
   margin-bottom: 30px;
 }
+
+/* Add these CSS styles to your admin.html <style> section 
+   or to your css/style.css file */
+
+/* Tab content display */
+.tab-content {
+  display: block;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.tab-content.hidden {
+  display: none;
+}
+
+/* Sidebar link styling */
+.sidebar__link {
+  display: block;
+  padding: 12px 15px;
+  color: #333;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.sidebar__link:hover {
+  background-color: rgba(0,0,0,0.05);
+  border-left-color: #ccc;
+}
+
+.sidebar__link.active {
+  background-color: rgba(0,0,0,0.1);
+  border-left-color: #007bff;
+  font-weight: bold;
+}
+
+/* Ensure main content has appropriate spacing */
+.admin-content {
+  padding: 20px;
+}
+
+/* Section titles in tab content */
+.tab-content h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}

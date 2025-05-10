@@ -789,8 +789,8 @@ router.get('/admin/stats', (req, res) => {
   // 4. ROOMS LIST
   router.get('/admin/rooms', (req, res) => {
 	db.all(`
-	  SELECT RM_ID   AS room_id,
-			 CAPACITY
+	  SELECT RM_ID AS room_id,
+			 capacity
 	  FROM CGY_STUDYRM
 	`, [], (err, rows) => {
 	  if (err) return res.status(500).json({ error: err.message });
@@ -825,6 +825,235 @@ router.get('/admin/stats', (req, res) => {
 	`, [], (err, rows) => {
 	  if (err) return res.status(500).json({ error: err.message });
 	  res.json({ data: rows });
+	});
+  });
+
+  // Get invoices with filtering options for admin
+  router.get('/admin/invoices', (req, res) => {
+    const { invoice_id, customer_id, rental_id, book_id } = req.query;
+    
+    // Validate and parse numeric inputs
+    const numericParams = {};
+    if (invoice_id && !isNaN(invoice_id)) numericParams.invoice_id = parseInt(invoice_id);
+    if (customer_id && !isNaN(customer_id)) numericParams.customer_id = parseInt(customer_id);
+    if (rental_id && !isNaN(rental_id)) numericParams.rental_id = parseInt(rental_id);
+    if (book_id && !isNaN(book_id)) numericParams.book_id = parseInt(book_id);
+
+    let whereClauses = [];
+    let params = [];
+    
+    // Build WHERE clause using validated numeric params
+    if (numericParams.invoice_id) {
+        whereClauses.push('i.INV_ID = ?');
+        params.push(numericParams.invoice_id);
+    }
+    
+    if (numericParams.customer_id) {
+        whereClauses.push('r.CUSTOMER_ID = ?');
+        params.push(numericParams.customer_id);
+    }
+    
+    if (numericParams.rental_id) {
+        whereClauses.push('i.RENTAL_ID = ?');
+        params.push(numericParams.rental_id);
+    }
+    
+    if (numericParams.book_id) {
+        whereClauses.push('r.BOOK_ID = ?');
+        params.push(numericParams.book_id);
+    }
+    
+    const whereClause = whereClauses.length > 0 
+        ? 'WHERE ' + whereClauses.join(' AND ') 
+        : '';
+
+    const sql = `
+        SELECT 
+            i.INV_ID as inv_id,
+            i.RENTAL_ID as rental_id,
+            i.INVOICE_DATE as invoice_date,
+            i.INV_AMT as inv_amt,
+            r.CUSTOMER_ID as customer_id,
+            c.C_FNAME as c_fname,
+            c.C_LNAME as c_lname,
+            COALESCE(SUM(p.PMT_AMT), 0) as paid_amt
+        FROM CGY_INVOICE i
+        INNER JOIN CGY_RENTAL r ON i.RENTAL_ID = r.RENTAL_ID
+        INNER JOIN CGY_CUSTOMER c ON r.CUSTOMER_ID = c.CUSTOMER_ID
+        LEFT JOIN CGY_PAYMENT p ON i.INV_ID = p.INV_ID
+        ${whereClause}
+        GROUP BY i.INV_ID, i.RENTAL_ID, i.INVOICE_DATE, i.INV_AMT, 
+                r.CUSTOMER_ID, c.C_FNAME, c.C_LNAME
+        ORDER BY i.INV_ID DESC
+    `;
+    
+    console.log('Executing query:', sql); // Debug logging
+    console.log('With parameters:', params); // Debug logging
+
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error fetching invoices:', err.message);
+            return res.status(500).json({ 
+                error: 'Database error',
+                details: err.message,
+                query: sql,        // Include in response for debugging
+                parameters: params // Include in response for debugging
+            });
+        }
+        
+        // Always return an array, even if empty
+        const result = rows || [];
+        console.log(`Found ${result.length} invoices`);
+        
+        res.json({ 
+            data: result,
+            meta: {
+                count: result.length,
+                filtered: whereClauses.length > 0
+            }
+        });
+    });
+});
+  
+  // Get rental details by rental ID for admin view
+  router.get('/admin/rentals/:id', (req, res) => {
+	const rentalId = req.params.id;
+	
+	const sql = `
+	  SELECT 
+		r.RENTAL_ID as rental_id,
+		r.R_STATUS as r_status,
+		r.BORROW_DATE as borrow_date,
+		r.EXP_RT_DATE as exp_rt_date,
+		r.ACT_RT_DATE as act_rt_date,
+		r.BOOK_ID as book_id,
+		r.CUSTOMER_ID as customer_id,
+		r.INV_ID as inv_id,
+		bi.ISBN as isbn,
+		b.BK_NAME as book_title
+	  FROM CGY_RENTAL r
+	  LEFT JOIN CGY_BOOK_INV bi ON r.BOOK_ID = bi.BOOK_ID
+	  LEFT JOIN CGY_BOOK b ON bi.ISBN = b.ISBN
+	  WHERE r.RENTAL_ID = ?
+	`;
+	
+	db.get(sql, [rentalId], (err, rental) => {
+	  if (err) {
+		console.error('Error fetching rental details:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  if (!rental) {
+		return res.status(404).json({ error: 'Rental not found' });
+	  }
+	  
+	  console.log(`Found rental details for rental ID ${rentalId}`);
+	  res.json(rental);
+	});
+  });
+  
+  // Create a new payment (admin function)
+  router.post('/admin/payments', (req, res) => {
+	const { inv_id, pmt_method, pmt_date, payee_fname, payee_lname, pmt_amt } = req.body;
+	
+	// Validate required fields
+	if (!inv_id || !pmt_method || !pmt_date || !payee_fname || !payee_lname || !pmt_amt) {
+	  return res.status(400).json({ error: 'Missing required fields' });
+	}
+	
+	// Validate payment method
+	const validMethods = ['CASH', 'CREDIT', 'DEBIT', 'CHECK', 'ONLINE'];
+	if (!validMethods.includes(pmt_method)) {
+	  return res.status(400).json({ error: 'Invalid payment method' });
+	}
+	
+	// Validate payment amount
+	if (parseFloat(pmt_amt) <= 0) {
+	  return res.status(400).json({ error: 'Payment amount must be greater than 0' });
+	}
+	
+	// First check if the invoice exists
+	db.get('SELECT * FROM CGY_INVOICE WHERE INV_ID = ?', [inv_id], (err, invoice) => {
+	  if (err) {
+		console.error('Error checking invoice:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+	  
+	  if (!invoice) {
+		return res.status(404).json({ error: 'Invoice not found' });
+	  }
+	  
+	  // Check if the payment amount exceeds the outstanding amount
+	  db.get(
+		'SELECT COALESCE(SUM(PMT_AMT), 0) as total_paid FROM CGY_PAYMENT WHERE INV_ID = ?', 
+		[inv_id], 
+		(err, result) => {
+		  if (err) {
+			console.error('Error checking existing payments:', err.message);
+			return res.status(500).json({ error: err.message });
+		  }
+		  
+		  const totalPaid = result.total_paid || 0;
+		  const outstandingAmount = invoice.INV_AMT - totalPaid;
+		  
+		  if (pmt_amt > outstandingAmount) {
+			return res.status(400).json({ 
+			  error: `Payment amount cannot exceed outstanding amount of ${outstandingAmount.toFixed(2)}` 
+			});
+		  }
+		  
+		  // Get the next PMT_ID
+		  db.get("SELECT MAX(PMT_ID) as max_id FROM CGY_PAYMENT", [], (err, result) => {
+			if (err) {
+			  console.error('Error getting max PMT_ID:', err.message);
+			  return res.status(500).json({ error: err.message });
+			}
+			
+			const nextPmtId = (result.max_id || 0) + 1;
+			
+			// Insert new payment
+			const insertSql = `
+			  INSERT INTO CGY_PAYMENT (
+				PMT_ID, 
+				PMT_METHOD, 
+				PMT_DATE, 
+				PAYEE_FNAME, 
+				PAYEE_LNAME, 
+				PMT_AMT, 
+				INV_ID
+			  ) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`;
+			
+			const insertParams = [
+			  nextPmtId,
+			  pmt_method,
+			  pmt_date,
+			  payee_fname,
+			  payee_lname,
+			  pmt_amt,
+			  inv_id
+			];
+			
+			db.run(insertSql, insertParams, function(err) {
+			  if (err) {
+				console.error('Error creating payment:', err.message);
+				return res.status(500).json({ error: err.message });
+			  }
+			  
+			  console.log(`Created new payment with ID ${nextPmtId}`);
+			  res.status(201).json({
+				pmt_id: nextPmtId,
+				inv_id: inv_id,
+				pmt_method: pmt_method,
+				pmt_date: pmt_date,
+				payee_fname: payee_fname,
+				payee_lname: payee_lname,
+				pmt_amt: pmt_amt
+			  });
+			});
+		  });
+		}
+	  );
 	});
   });
   

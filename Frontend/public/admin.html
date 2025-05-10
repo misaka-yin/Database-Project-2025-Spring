@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,13 +10,181 @@
   <link rel="stylesheet" href="css/style.css">
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <style>
+    /* Custom styles for payment management */
+    .search-container {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+    }
+
+    .search-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .filter-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .search-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+
+    .badge-success {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .badge-warning {
+      background-color: #ffc107;
+      color: #212529;
+    }
+
+    .badge-danger {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    /* Rental info styling */
+    .rental-info {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+      background-color: #f9f9f9;
+    }
+
+    .rental-info h4 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+
+    .info-row {
+      display: flex;
+      margin-bottom: 8px;
+    }
+
+    .info-label {
+      flex: 1;
+      font-weight: bold;
+    }
+
+    .info-value {
+      flex: 2;
+    }
+
+    /* Hyperlink styling */
+    .rental-link {
+      color: #007bff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* Make tables more readable */
+    table.dataTable thead th,
+    table.dataTable tbody td {
+      padding: 10px 15px;
+    }
+
+    /* Highlight row on hover */
+    table.dataTable tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+  </style>
 </head>
+
 <body id="admin">
   <!-- Header -->
   <header class="header">
     <div class="header__container">
       <a href="index.html" class="header__logo">
-        <img src="assets/images/logo.png" alt="PAL Logo" height="40">
+        <img src="assets/images/logo.png" alt="PAL Logo" height="40" />
         <span class="header__slogan">Library Admin</span>
       </a>
       <nav class="header__nav">
@@ -27,6 +196,7 @@
     </div>
   </header>
 
+  <!-- Sidebar + Main Content -->
   <div class="admin-container">
     <!-- Sidebar -->
     <aside class="admin-sidebar">
@@ -40,7 +210,6 @@
           <li>Upcoming Events: <span id="statEvents">...</span></li>
         </ul>
       </div>
-      <!-- Chart Canvas -->
       <div class="sidebar__chart">
         <canvas id="statsChart" width="400" height="200"></canvas>
       </div>
@@ -49,13 +218,13 @@
           <li><a href="#tabBooks" class="sidebar__link" data-tab="books">Books Management</a></li>
           <li><a href="#tabEvents" class="sidebar__link" data-tab="events">Events Management</a></li>
           <li><a href="#tabRooms" class="sidebar__link" data-tab="rooms">Study Room Management</a></li>
-          <li><a href="#tabDiscounts" class="sidebar__link" data-tab="discounts">Discount Management</a></li>
+          <li><a href="#tabPayments" class="sidebar__link" data-tab="payments">Payment Management</a></li>
           <li><a href="#tabUsers" class="sidebar__link" data-tab="users">User Management</a></li>
         </ul>
       </nav>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Tabs Content -->
     <main class="admin-content">
       <div class="tabs">
         <!-- Books Management -->
@@ -113,18 +282,47 @@
           </table>
         </section>
 
-        <!-- Discount Management -->
-        <section id="tabDiscounts" class="tab-content hidden">
-          <h2>Discount Management</h2>
-          <button class="btn btn--primary" id="addDiscountBtn">Create Discount</button>
-          <table id="discountsList" class="display" style="width:100%">
+        <!-- Payment Management -->
+        <section id="tabPayments" class="tab-content hidden">
+          <h2>Payment Management</h2>
+
+          <div class="search-container">
+            <h3>Search Invoices</h3>
+            <div class="search-filters">
+              <div class="filter-group">
+                <label for="invoiceIdFilter">Invoice ID:</label>
+                <input type="text" id="invoiceIdFilter" placeholder="Enter Invoice ID...">
+              </div>
+              <div class="filter-group">
+                <label for="customerIdFilter">Customer ID:</label>
+                <input type="text" id="customerIdFilter" placeholder="Enter Customer ID...">
+              </div>
+              <div class="filter-group">
+                <label for="rentalIdFilter">Rental ID:</label>
+                <input type="text" id="rentalIdFilter" placeholder="Enter Rental ID...">
+              </div>
+              <div class="filter-group">
+                <label for="bookIdFilter">Book ID:</label>
+                <input type="text" id="bookIdFilter" placeholder="Enter Book ID...">
+              </div>
+            </div>
+            <div class="search-actions">
+              <button id="searchInvoicesBtn" class="btn btn--primary">Search</button>
+              <button id="clearInvoiceSearchBtn" class="btn btn--secondary">Clear</button>
+            </div>
+          </div>
+
+          <table id="invoicesList" class="display" style="width:100%">
             <thead>
               <tr>
-                <th>Discount ID</th>
-                <th>Method</th>
-                <th>Date</th>
-                <th>Amount</th>
                 <th>Invoice ID</th>
+                <th>Rental ID</th>
+                <th>Invoice Date</th>
+                <th>Customer ID</th>
+                <th>Customer Name</th>
+                <th>Invoice Amount</th>
+                <th>Paid Amount</th>
+                <th>Outstanding Amount</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -154,8 +352,8 @@
     </main>
   </div>
 
-  <!-- Modal for Editing -->
-  <div id="adminModal" class="modal hidden">
+  <!-- Modal (Unchanged) -->
+  <div id="adminModal" class="modal">
     <div class="modal-content">
       <span class="close" id="closeAdminModal">&times;</span>
       <h3 id="modalTitle"></h3>
@@ -172,11 +370,77 @@
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Rental Details Modal (Unchanged) -->
+  <div id="rentalDetailsModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeRentalModal">&times;</span>
+      <h3>Rental Details</h3>
+      <div id="rentalDetailsBody"></div>
+      <button class="btn btn--primary" id="closeRentalDetailsBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- Payment Modal (Unchanged) -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closePaymentModal">&times;</span>
+      <h3>Make a Payment</h3>
+      <form id="paymentForm">
+        <input type="hidden" id="paymentInvoiceId" />
+        <input type="hidden" id="paymentCustomerId" />
+        <input type="hidden" id="paymentCustomerFname" />
+        <input type="hidden" id="paymentCustomerLname" />
+
+        <div class="form-group">
+          <label for="paymentMethod">Payment Method:</label>
+          <select id="paymentMethod" required>
+            <option value="">Select a payment method</option>
+            <option value="CREDIT">Credit</option>
+            <option value="DEBIT">Debit</option>
+            <option value="CASH">Cash</option>
+            <option value="ONLINE">Online</option>
+            <option value="CHECK">Check</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Payee Information:</label>
+          <div>
+            <input type="checkbox" id="sameAsCustomer" />
+            <label for="sameAsCustomer">Same as Customer</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="payeeFname">First Name:</label>
+          <input type="text" id="payeeFname" required />
+        </div>
+
+        <div class="form-group">
+          <label for="payeeLname">Last Name:</label>
+          <input type="text" id="payeeLname" required />
+        </div>
+
+        <div class="form-group">
+          <label for="paymentAmount">Payment Amount:</label>
+          <input type="number" id="paymentAmount" min="0.01" step="0.01" required />
+          <div id="outstandingAmountInfo" style="font-size: 0.85em; margin-top: 5px; color: #6c757d;"></div>
+        </div>
+
+        <div class="form-actions" style="text-align: right; margin-top: 20px;">
+          <button type="button" class="btn btn--secondary" id="cancelPaymentBtn">Cancel</button>
+          <button type="submit" class="btn btn--primary">Confirm Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JS Libraries + App Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script src="js/main.js"></script>
   <script src="js/admin.js"></script>
 </body>
+
 </html>
