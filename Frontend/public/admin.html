@@ -88,6 +88,10 @@
       align-items: center;
     }
 
+    .modal.hidden {
+      display: none;
+    }
+
     .modal.active {
       display: flex;
     }
@@ -259,6 +263,8 @@
                 <th>Type</th>
                 <th>Start Date</th>
                 <th>End Date</th>
+                <th>Topic ID</th>
+                <th>Topic Des</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -270,6 +276,11 @@
         <section id="tabRooms" class="tab-content hidden">
           <h2>Study Room Management</h2>
           <button class="btn btn--primary" id="addRoomBtn">Add New Room</button>
+          <div id="addRoomModal" style="display:none;">
+            <label>Room ID: <input type="number" id="newRoomId" /></label><br>
+            <label>Capacity: <input type="number" id="newRoomCapacity" /></label><br>
+            <button id="confirmAddRoom">Confirm</button>
+          </div>
           <table id="roomsList" class="display" style="width:100%">
             <thead>
               <tr>
@@ -434,6 +445,90 @@
       </form>
     </div>
   </div>
+
+  <!-- Reservation Modal -->
+  <div id="reserveModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="document.getElementById('reserveModal').classList.remove('active')">&times;</span>
+      <h3>Reserve Study Room</h3>
+      <input type="hidden" id="reserveRoomId" />
+      <div class="form-group">
+        <label>Start Date/Time:</label>
+        <input type="datetime-local" id="rsvStart" />
+      </div>
+      <div class="form-group">
+        <label>End Date/Time:</label>
+        <input type="datetime-local" id="rsvEnd" />
+      </div>
+      <div class="form-group">
+        <label>Group Size:</label>
+        <input type="number" id="groupSize" />
+      </div>
+      <div class="form-group">
+        <label>Topic Description:</label>
+        <input type="text" id="topic" />
+      </div>
+      <div class="form-group">
+        <label>Customer ID:</label>
+        <input type="number" id="customerId" />
+      </div>
+      <button id="confirmReserve" class="btn btn--primary">Confirm Reservation</button>
+    </div>
+  </div>
+
+  <!-- Edit Room Modal -->
+  <div id="editRoomModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="document.getElementById('editRoomModal').classList.remove('active')">&times;</span>
+      <h3>Edit Room Capacity</h3>
+      <p>Room ID: <span id="editRoomIdDisplay"></span></p>
+      <p>Current Capacity: <span id="currentRoomCapacity"></span></p>
+      <label>Updated Capacity:
+        <input type="number" id="updatedRoomCapacity" />
+      </label>
+      <br>
+      <button id="confirmEditRoom" class="btn btn--primary">Confirm</button>
+    </div>
+  </div>
+
+
+  <!-- Add/Edit Event Modal -->
+  <div id="eventModal" class="modal hidden">
+    <div class="modal-content">
+      <span id="closeEventModal" class="close">&times;</span>
+      <h3 id="eventModalTitle">Add New Event</h3>
+
+      <!-- Hidden input for edit mode -->
+      <input type="hidden" id="eventId" />
+
+      <label>Event Name:<br>
+        <input type="text" id="eventName">
+      </label><br><br>
+
+      <label>Event Type:<br>
+        <select id="eventType">
+          <option value="S">Seminar</option>
+          <option value="E">Exhibition</option>
+        </select>
+      </label><br><br>
+
+      <label>Start Date & Time:<br>
+        <input type="datetime-local" id="startDateTime">
+      </label><br><br>
+
+      <label>End Date & Time:<br>
+        <input type="datetime-local" id="endDateTime">
+      </label><br><br>
+
+      <label>Topic:<br>
+        <select id="eventTopic"></select>
+      </label><br><br>
+
+      <button id="confirmEventBtn" class="btn btn--primary">Confirm</button>
+    </div>
+  </div>
+
+
 
   <!-- JS Libraries + App Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
