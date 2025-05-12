@@ -72,6 +72,8 @@ async function loadLists() {
       { data: 'event_type' },
       { data: 'start_dt' },
       { data: 'end_dt' },
+      { data: 'topic_id' },
+      { data: 'topic_des' },
       { data: null, render: r => `<button class="edit-btn" data-type="events" data-id="${r.event_id}">Edit</button>` }
     ]
   });
@@ -82,7 +84,11 @@ async function loadLists() {
     columns: [
       { data: 'room_id' },
       { data: 'CAPACITY' },
-      { data: null, render: r => `<button class="edit-btn" data-type="rooms" data-id="${r.room_id}">Edit</button>` }
+      { data: null, render: r => `
+        <button class="edit-btn" data-type="rooms" data-id="${r.room_id}">Edit</button>
+        <button class="reserveRoomBtn" data-id="${r.room_id}">Reserve</button>
+      `
+    }
     ]
   });
   
@@ -127,6 +133,7 @@ function openEditModal(type, id) {
 
   modalBody.innerHTML = formHtml;
   modal.classList.remove('hidden');
+  //modal.classList.add('active');
 
   document.getElementById('editForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -137,6 +144,7 @@ function openEditModal(type, id) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    modal.classList.remove('active');
     modal.classList.add('hidden');
     tables[type].ajax.reload(null, false);
   }, { once: true });
@@ -224,6 +232,24 @@ function initializePaymentManagement() {
     ordering: true,
     info: true
   });
+
+  
+
+
+  // Edit button handler in DataTable
+  $('#eventsList').on('click', '.edit-btn', async function (e) {
+    e.stopPropagation();
+    try {
+      const row = tables.events.row($(this).closest('tr')).data();
+      await loadTopicsDropdown();
+      openEventModal('edit', row);
+    } catch (error) {
+      console.error('Error opening edit modal:', error);
+      alert('Could not open event editor. Please try again.');
+    }
+  });
+}
+
 
   // Search invoices button click
   document.getElementById('searchInvoicesBtn').addEventListener('click', loadFilteredInvoices);
@@ -316,7 +342,7 @@ function initializePaymentManagement() {
     
     createPayment(paymentData);
   });
-}
+
 
 async function loadFilteredInvoices() {
   try {
@@ -461,4 +487,290 @@ document.addEventListener('DOMContentLoaded', () => {
   loadLists();
   initializeTabs();
   initializePaymentManagement();
+  //initializeEventModal();
 });
+
+document.getElementById("addRoomBtn").onclick = () => {
+  document.getElementById("addRoomModal").style.display = "block";
+};
+
+document.getElementById("confirmAddRoom").onclick = async () => {
+  const rmId = parseInt(document.getElementById("newRoomId").value);
+  const capacity = parseInt(document.getElementById("newRoomCapacity").value);
+
+  await fetch('/api/studyroom', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ RM_ID: rmId, CAPACITY: capacity })
+  });
+
+  location.reload();
+};
+
+
+document.querySelectorAll(".reserveRoomBtn").forEach(button => {
+  button.onclick = () => {
+      document.getElementById("reserveModal").style.display = "block";
+      document.getElementById("reserveRoomId").value = button.dataset.id;
+  };
+});
+// Handle clicking Reserve buttons in rooms table
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('reserveRoomBtn')) {
+    const roomId = e.target.dataset.id;
+    document.getElementById('reserveRoomId').value = roomId;
+    document.getElementById('reserveModal').classList.add('active');
+  }
+});
+
+function formatAsShortISO(dateTimeStr) {
+  const dt = new Date(dateTimeStr);
+  if (isNaN(dt)) throw new Error("Invalid datetime");
+
+  const pad = num => String(num).padStart(2, '0');
+
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}:00`;
+}
+
+
+// Confirm reservation button
+document.getElementById('confirmReserve').addEventListener('click', async () => {
+  const payload = {
+    rm_id: parseInt(document.getElementById("reserveRoomId").value),
+    rsv_start_dt: formatAsShortISO(document.getElementById("rsvStart").value),
+    rsv_end_dt: formatAsShortISO(document.getElementById("rsvEnd").value),
+    group_size: parseInt(document.getElementById("groupSize").value),
+    topic_des: document.getElementById("topic").value,
+    customer_id: parseInt(document.getElementById("customerId").value)
+  };
+  
+
+
+  try {
+    console.log('Submitting reservation with payload:', payload);
+    const res = await fetch('/api/admin/reservation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      alert('Reservation successful!');
+      document.getElementById('reserveModal').classList.remove('active');
+    } else {
+      const data = await res.json();
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Reservation error:', err);
+    alert('Unexpected error occurred');
+  }
+});
+
+// document.addEventListener('click', function (e) {
+//   if (e.target && e.target.classList.contains('edit-btn')) {
+//     const roomId = e.target.dataset.id;
+//     const row = tables.rooms.row($(e.target).closest('tr')).data();
+
+//     // Populate modal fields
+//     document.getElementById('editRoomIdDisplay').textContent = roomId;
+//     document.getElementById('currentRoomCapacity').textContent = row.CAPACITY;
+//     document.getElementById('updatedRoomCapacity').value = row.CAPACITY;
+
+//     // Show modal
+//     document.getElementById('editRoomModal').classList.add('active');
+//   }
+// });
+
+
+document.getElementById('confirmEditRoom').addEventListener('click', async () => {
+  const roomId = document.getElementById('editRoomIdDisplay').textContent;
+  const newCapacity = parseInt(document.getElementById('updatedRoomCapacity').value);
+
+  try {
+    const res = await fetch(`/api/admin/studyroom/${roomId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ CAPACITY: newCapacity })
+    });
+
+    if (res.ok) {
+      alert('Room capacity updated.');
+      document.getElementById('editRoomModal').classList.remove('active');
+      tables.rooms.ajax.reload(null, false);
+    } else {
+      const err = await res.json();
+      alert('Error: ' + err.error);
+    }
+  } catch (err) {
+    console.error('Update failed:', err);
+    alert('Unexpected error occurred.');
+  }
+});
+
+// Load topic options into dropdown
+async function loadTopicsDropdown() {
+  const res = await fetch('/api/admin/topics');
+  const topics = await res.json();
+  const topicSelect = document.getElementById('eventTopic');
+  topicSelect.innerHTML = '';
+  topics.forEach(t => {
+    const option = document.createElement('option');
+    option.value = t.TOPIC_ID;
+    option.textContent = t.TOPIC_DES;
+    topicSelect.appendChild(option);
+  });
+}
+
+
+
+// Close modal
+document.getElementById('closeEventModal').onclick = () =>
+  document.getElementById('eventModal').classList.add('hidden');
+
+// Add button click
+document.getElementById('addEventBtn').addEventListener('click', async () => {
+  try {
+    console.log("Add Event button clicked");
+    //await 
+    loadTopicsDropdown();
+    openEventModal('add');
+  } catch (error) {
+    console.error("Error opening add event modal:", error);
+    alert("Failed to prepare event form. Please try again.");
+  }
+});
+
+// Confirm submit
+document.getElementById('confirmEventBtn').onclick = async () => {
+  const id = document.getElementById('eventId').value;
+  const payload = {
+    event_name: document.getElementById('eventName').value,
+    event_type: document.getElementById('eventType').value,
+    start_dt: document.getElementById('startDateTime').value,
+    end_dt: document.getElementById('endDateTime').value,
+    topic_id: parseInt(document.getElementById('eventTopic').value)
+  };
+
+  const method = id ? 'PUT' : 'POST';
+  const url = id ? `/api/admin/events/${id}` : '/api/admin/events';
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (res.ok) {
+    alert('Event saved!');
+    document.getElementById('eventModal').classList.remove('active');
+    document.getElementById('eventModal').classList.add('hidden');
+    tables.events.ajax.reload(null, false);
+  } else {
+    alert('Failed to save event.');
+  }
+};
+
+// Edit button handler
+$('#eventsList').on('click', '.edit-btn', async function (e) {
+  e.stopPropagation(); // Prevent other handlers
+  try {
+    const row = tables.events.row($(this).closest('tr')).data();
+    await loadTopicsDropdown();
+    openEventModal('edit', row);
+  } catch (error) {
+    console.error("Error opening edit event modal:", error);
+    alert("Failed to open event editor. Please try again.");
+  }
+});
+
+/// Open modal (Add or Edit)
+function openEventModal(mode, row = null) {
+  const modal = document.getElementById('eventModal');
+  if (!modal) {
+    console.error('Event modal element not found');
+    return;
+  }
+
+    // Show the modal
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+
+  document.getElementById('eventModalTitle').textContent =
+    mode === 'add' ? 'Add New Event' : 'Edit Event';
+
+  // Always reset form for both add/edit
+  document.getElementById('eventName').value = '';
+  document.getElementById('eventType').value = 'S';
+  document.getElementById('startDateTime').value = '';
+  document.getElementById('endDateTime').value = '';
+  document.getElementById('eventTopic').selectedIndex = 0;
+
+  // Only use eventId in edit mode
+  if (mode === 'edit' && row) {
+    document.getElementById('eventId').value = row.event_id || '';
+    document.getElementById('eventName').value = row.event_name || '';
+    document.getElementById('eventType').value = row.event_type || 'S';
+    document.getElementById('startDateTime').value =
+      row.start_dt ? row.start_dt.slice(0, 16) : '';
+    document.getElementById('endDateTime').value =
+      row.end_dt ? row.end_dt.slice(0, 16) : '';
+    if (row.topic_id) {
+      document.getElementById('eventTopic').value = row.topic_id;
+    }
+  }
+
+
+}
+
+
+// Open modal for adding event
+document.getElementById('addEventBtn').addEventListener('click', async () => {
+  await loadTopicsDropdown();
+
+  // Clear previous inputs
+  document.getElementById('eventModalTitle').textContent = 'Add Event';
+  document.getElementById('eventName').value = '';
+  document.getElementById('eventType').value = 'S';
+  document.getElementById('startDateTime').value = '';
+  document.getElementById('endDateTime').value = '';
+  document.getElementById('eventTopic').selectedIndex = 0;
+  
+  document.getElementById('eventModal').classList.remove('hidden');
+  document.getElementById('eventModal').classList.add('active');
+});
+
+// Close modal
+document.getElementById('closeEventModal').addEventListener('click', () => {
+  document.getElementById('eventModal').classList.remove('active');
+  document.getElementById('eventModal').classList.add('hidden');
+});
+
+// Confirm and submit event
+document.getElementById('confirmEventBtn').addEventListener('click', async () => {
+  const payload = {
+    event_name: document.getElementById('eventName').value,
+    event_type: document.getElementById('eventType').value,
+    start_dt: document.getElementById('startDateTime').value,
+    end_dt: document.getElementById('endDateTime').value,
+    topic_id: parseInt(document.getElementById('eventTopic').value)
+  };
+
+  const res = await fetch('/api/admin/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (res.ok) {
+    alert('Event created!');
+    document.getElementById('eventModal').classList.remove('active');
+    document.getElementById('eventModal').classList.add('hidden');
+    tables.events.ajax.reload(null, false);
+  } else {
+    const err = await res.json();
+    alert('Error creating event: ' + err.error);
+  }
+});
+
+

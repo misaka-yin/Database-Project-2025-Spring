@@ -68,6 +68,9 @@ cursor: pointer;
   border: 1px solid #ccc; border-radius: 0.25rem;
 }
 
+.modal.hidden {
+  display: none;
+}
 
 .table-container {
   border: 1px solid #ddd;

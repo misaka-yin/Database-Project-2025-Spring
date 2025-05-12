@@ -113,6 +113,13 @@ router.get('/studyrooms', (req, res) => {
 	});
 });
 
+router.post("/studyroom", async (req, res) => {
+    const { RM_ID, CAPACITY } = req.body;
+    await db.run("INSERT INTO CGY_STUDYRM (RM_ID, CAPACITY) VALUES (?, ?)", [RM_ID, CAPACITY]);
+    res.sendStatus(201);
+});
+
+
 // Get user's reservations
 router.get('/reservations', (req, res) => {
 	const sql = `
@@ -682,7 +689,7 @@ router.get('/events/:id/sponsors', (req, res) => {
 	});
   });
   
-  // Get all topics
+  //Get all topics
   router.get('/topics', (req, res) => {
 	const sql = 'SELECT TOPIC_ID as topic_id, TOPIC_DES as topic_des FROM CGY_TOPIC ORDER BY TOPIC_DES';
 	
@@ -773,18 +780,22 @@ router.get('/admin/stats', (req, res) => {
   router.get('/admin/events', (req, res) => {
 	db.all(`
 	  SELECT 
-		e.EVENT_ID   AS event_id,
-		e.EVENT_NAME AS event_name,
-		e.EVENT_TYPE AS event_type,
-		e.START_DT   AS start_dt,
-		e.END_DT     AS end_dt
+		e.EVENT_ID    AS event_id,
+		e.EVENT_NAME  AS event_name,
+		e.EVENT_TYPE  AS event_type,
+		e.START_DT    AS start_dt,
+		e.END_DT      AS end_dt,
+		e.TOPIC_ID    AS topic_id,
+		t.TOPIC_DES   AS topic_des
 	  FROM CGY_EVENTS e
+	  LEFT JOIN CGY_TOPIC t ON e.TOPIC_ID = t.TOPIC_ID
 	  ORDER BY e.START_DT DESC
 	`, [], (err, rows) => {
 	  if (err) return res.status(500).json({ error: err.message });
 	  res.json({ data: rows });
 	});
   });
+  
   
   // 4. ROOMS LIST
   router.get('/admin/rooms', (req, res) => {
@@ -914,6 +925,8 @@ router.get('/admin/stats', (req, res) => {
         });
     });
 });
+
+
   
   // Get rental details by rental ID for admin view
   router.get('/admin/rentals/:id', (req, res) => {
@@ -952,6 +965,19 @@ router.get('/admin/stats', (req, res) => {
 	});
   });
   
+  router.post('/admin/reservation', async (req, res) => {
+	const { rsv_start_dt, rsv_end_dt, group_size, topic_des, rm_id, customer_id } = req.body;
+	console.log('Received reservation request:', req.body);
+  
+	await db.run(`
+	  INSERT INTO CGY_RM_RSV (RSV_START_DT, RSV_END_DT, GROUP_SIZE, TOPIC_DES, RM_ID, CUSTOMER_ID)
+	  VALUES (?, ?, ?, ?, ?, ?)`,
+	  [rsv_start_dt, rsv_end_dt, group_size, topic_des, rm_id, customer_id]
+	);
+  
+	res.sendStatus(201);
+});
+
   // Create a new payment (admin function)
   router.post('/admin/payments', (req, res) => {
 	const { inv_id, pmt_method, pmt_date, payee_fname, payee_lname, pmt_amt } = req.body;
@@ -1056,5 +1082,81 @@ router.get('/admin/stats', (req, res) => {
 	  );
 	});
   });
+
+  router.put('/admin/studyroom/:id', (req, res) => {
+	const { id } = req.params;
+	const { CAPACITY } = req.body;
+  
+	if (!CAPACITY || isNaN(CAPACITY)) {
+	  return res.status(400).json({ error: 'Invalid capacity' });
+	}
+  
+	db.run("UPDATE CGY_STUDYRM SET CAPACITY = ? WHERE RM_ID = ?", [CAPACITY, id], function (err) {
+	  if (err) {
+		console.error('DB error:', err.message);
+		return res.status(500).json({ error: err.message });
+	  }
+  
+	  res.sendStatus(200);
+	});
+  });
+  
+  // Get all topics
+	router.get('/admin/topics', (req, res) => {
+		db.all('SELECT * FROM CGY_TOPIC', [], (err, rows) => {
+		if (err) return res.status(500).json({ error: err.message });
+		res.json(rows);
+		});
+	});
+  
+  // Create event
+  router.post('/admin/events', (req, res) => {
+	const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
+  
+	db.run(
+	  `INSERT INTO CGY_EVENTS (EVENT_NAME, EVENT_TYPE, START_DT, END_DT, TOPIC_ID)
+	   VALUES (?, ?, ?, ?, ?)`,
+	  [event_name, event_type, start_dt, end_dt, topic_id],
+	  function (err) {
+		if (err) return res.status(500).json({ error: err.message });
+  
+		const eventId = this.lastID; // Get the auto-generated ID
+  
+		// Insert into SEMINAR or EXHIBITION
+		const subTable = event_type === 'S' ? 'SEMINAR' : 'EXHIBITION';
+		const subField = event_type === 'S' ? 'S_TYPE' : 'EXPENSES';
+		const subValue = event_type === 'S' ? 'General' : 0.0;
+  
+		db.run(
+		  `INSERT INTO ${subTable} (EVENT_ID, ${subField}) VALUES (?, ?)`,
+		  [eventId, subValue],
+		  err2 => {
+			if (err2) return res.status(500).json({ error: err2.message });
+			res.status(201).json({ event_id: eventId });
+		  }
+		);
+	  }
+	);
+  });
+  
+  
+  
+  // Update event
+  router.put('/admin/events/:id', (req, res) => {
+	const { id } = req.params;
+	const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
+  
+	db.run(
+	  `UPDATE CGY_EVENTS SET
+		EVENT_NAME = ?, EVENT_TYPE = ?, START_DT = ?, END_DT = ?, TOPIC_ID = ?
+	   WHERE EVENT_ID = ?`,
+	  [event_name, event_type, start_dt, end_dt, topic_id, id],
+	  err => {
+		if (err) return res.status(500).json({ error: err.message });
+		res.sendStatus(200);
+	  }
+	);
+  });
+
   
   module.exports = router;
