@@ -115,9 +115,10 @@
         <input type="email" id="loginEmail" name="email" required placeholder="you@example.com">
         <label for="loginPassword">Password</label>
         <input type="password" id="loginPassword" name="password" required placeholder="••••••••">
-        <div class="form-actions">
+                <div class="form-actions">
           <button type="submit" class="btn btn--primary">Login</button>
-          <a href="#" class="link">Forgot Password?</a>
+          
+          <a href="#" id="forgotPasswordLink" class="link">Forgot Password?</a>
         </div>
       </form>
     </div>
@@ -170,6 +171,25 @@
     </div>
   </div>
 
+    <!-- Password Reset Modal -->
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <h2>Reset Your Password</h2>
+      <form id="resetForm">
+        <label for="resetEmail">Email</label>
+        <input type="email" id="resetEmail" name="email" required placeholder="you@example.com">
+        <label for="resetPassword">New Password</label>
+        <input type="password" id="resetPassword" name="newPassword" required placeholder="••••••••">
+        <label for="resetConfirm">Confirm New Password</label>
+        <input type="password" id="resetConfirm" name="confirmPassword" required placeholder="••••••••">
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     function toggleModal(modalId, show) {
       const modal = document.getElementById(modalId);
@@ -177,6 +197,14 @@
     }
     document.getElementById('loginBtn').addEventListener('click', () => toggleModal('loginModal', true));
     document.getElementById('registerBtn').addEventListener('click', () => toggleModal('registerModal', true));
+
+       // Open “Forgot Password?” → show resetModal
+   document.getElementById('forgotPasswordLink')
+     .addEventListener('click', e => {
+       e.preventDefault();
+       toggleModal('resetModal', true);
+     });
+
     document.querySelectorAll('[data-modal-close]').forEach(el => {
       el.addEventListener('click', () => toggleModal(el.closest('.modal').id, false));
     });

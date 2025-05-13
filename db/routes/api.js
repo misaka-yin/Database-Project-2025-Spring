@@ -92,6 +92,39 @@ router.post('/users/login', (req, res) => {
   );
 });
 
+// password reset
+/**
+  * POST /api/users/reset
+  * Body: { email, newPassword, confirmPassword }
+  */
+ router.post('/users/reset', async (req, res) => {
+   const { email, newPassword, confirmPassword } = req.body;
+   if (!email || !newPassword || !confirmPassword) {
+     return res.status(400).json({ error: 'Missing required fields.' });
+   }
+   if (newPassword !== confirmPassword) {
+     return res.status(400).json({ error: 'Passwords do not match.' });
+   }
+   try {
+     const hash = await bcrypt.hash(newPassword, 10);
+     db.run(
+       `UPDATE CGY_USER SET password_hash = ? WHERE email = ?`,
+       [hash, email],
+       function(err) {
+         if (err) {
+           return res.status(500).json({ error: err.message });
+         }
+         if (this.changes === 0) {
+           return res.status(404).json({ error: 'Email not found.' });
+         }
+         res.json({ success: true, message: 'Password reset successfully.' });
+       }
+     );
+   } catch (e) {
+     res.status(500).json({ error: 'Hashing error.' });
+   }
+ });
+
 
 
 
