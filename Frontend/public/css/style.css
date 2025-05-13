@@ -138,3 +138,55 @@ cursor: pointer;
   padding-bottom: 10px;
   border-bottom: 1px solid #eee;
 }
+
+.header {
+  background-color: #333;
+  color: white;
+  padding: 0.75em 1.5em;
+  position: relative;
+  width: 100%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-family: system-ui, sans-serif;
+}
+
+.header__container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.header__logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: white;
+}
+
+.header__logo img {
+  margin-right: 0.5em;
+}
+
+.header__slogan {
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+.header__nav .nav__list {
+  list-style: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+}
+
+.nav__link {
+  color: white;
+  text-decoration: none;
+  margin-left: 1.5em;
+  font-size: 1em;
+}
+
+.nav__link--active {
+  border-bottom: 2px solid #fff;
+}
