@@ -224,6 +224,9 @@
           <li><a href="#tabRooms" class="sidebar__link" data-tab="rooms">Study Room Management</a></li>
           <li><a href="#tabPayments" class="sidebar__link" data-tab="payments">Payment Management</a></li>
           <li><a href="#tabUsers" class="sidebar__link" data-tab="users">User Management</a></li>
+          <li><a href="#tabEmployees" class="sidebar__link" data-tab="employees">Employee Management</a></li>
+          <li><a href="#tabCustomers" class="sidebar__link" data-tab="customers">Customer Management</a></li>
+
         </ul>
       </nav>
     </aside>
@@ -353,6 +356,50 @@
                 <th>Last Name</th>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="tabEmployees" class="tab-content hidden">
+          <h2>Employee Management</h2>
+          <button class="btn btn--primary" id="addEmployeeBtn">Add New Employee</button>
+          <table id="employeesList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Department</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- Customer Management -->
+        <section id="tabCustomers" class="tab-content hidden">
+          <h2>Customer Management</h2>
+          <button class="btn btn--primary" id="addCustomerBtn">Add New Customer</button>
+          <table id="customersList" class="display" style="width:100%">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>ID Type</th>
+                <th>ID Number</th>
                 <th>Action</th>
               </tr>
             </thead>
