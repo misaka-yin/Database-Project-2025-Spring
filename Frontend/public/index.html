@@ -128,20 +128,41 @@
     <div class="modal-content">
       <span class="modal-close" data-modal-close>&times;</span>
       <h2>Create an Account</h2>
-      <!-- Registration Form: collects user info and default role -->
       <form id="registerForm">
-        <label for="regFName">First Name</label>
-        <input type="text" id="regFName" name="firstName" required placeholder="First Name">
-        <label for="regLName">Last Name</label>
-        <input type="text" id="regLName" name="lastName" required placeholder="Last Name">
+        <!-- 新增 username 字段 -->
+        <label for="regUsername">Username</label>
+        <input type="text" id="regUsername" name="username" required placeholder="Your username">
+
+        <!-- 合并全名字段 -->
+        <label for="regFullName">Full Name</label>
+        <input type="text" id="regFullName" name="fullName" required placeholder="Your full name">
+
+        <label for="regPhone">Phone</label>
+        <input type="tel" id="regPhone" name="phone" placeholder="Optional">
+
+        <label for="regIdType">Identification Type</label>
+        <select id="regIdType" name="idType" required>
+          <option value="">-- Select --</option>
+          <option value="Passport">Passport</option>
+          <option value="SSN">SSN</option>
+          <option value="DriverLicense">Driver License</option>
+        </select>
+
+        <label for="regIdNumber">Identification Number</label>
+        <input type="text" id="regIdNumber" name="idNumber" required placeholder="ID Number">
+
         <label for="regEmail">Email</label>
         <input type="email" id="regEmail" name="email" required placeholder="you@example.com">
+
         <label for="regPassword">Password</label>
         <input type="password" id="regPassword" name="password" required placeholder="••••••••">
+
         <label for="regConfirm">Confirm Password</label>
         <input type="password" id="regConfirm" name="confirmPassword" required placeholder="••••••••">
-        <!-- Hidden input to set default user role -->
-        <input type="hidden" name="role" value="user">
+
+        <!-- Hidden: user.role 对应 CGY_USER.role -->
+        <input type="hidden" name="role" value="CUSTOMER">
+
         <div class="form-actions">
           <button type="submit" class="btn btn--primary">Register</button>
         </div>
@@ -150,18 +171,12 @@
   </div>
 
   <script>
-    // Function to toggle modal visibility
     function toggleModal(modalId, show) {
       const modal = document.getElementById(modalId);
       modal.classList[show ? 'add' : 'remove']('active');
     }
-
-    // Open login modal on button click
     document.getElementById('loginBtn').addEventListener('click', () => toggleModal('loginModal', true));
-    // Open registration modal on button click
     document.getElementById('registerBtn').addEventListener('click', () => toggleModal('registerModal', true));
-    
-    // Close modals when clicking the close icon or outside the modal content
     document.querySelectorAll('[data-modal-close]').forEach(el => {
       el.addEventListener('click', () => toggleModal(el.closest('.modal').id, false));
     });
@@ -171,63 +186,8 @@
       }
     });
 
-    // Handle registration form submission via AJAX
-    document.getElementById('registerForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const form = e.target;
-      // Gather form data
-      const data = {
-        firstName: form.firstName.value,
-        lastName:  form.lastName.value,
-        email:     form.email.value,
-        password:  form.password.value,
-        role:      form.role.value
-      };
-      try {
-        // Send POST request to backend API
-        const resp = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const body = await resp.json();
-        if (body.success) {
-          alert('Registration successful! Please log in.');
-          toggleModal('registerModal', false);
-        } else {
-          alert('Registration failed: ' + (body.error || 'Unknown error'));
-        }
-      } catch (err) {
-        alert('Network error, please try again later.');
-      }
-    });
-
-    // Handle login form submission via AJAX
-    document.getElementById('loginForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        email:    form.email.value,
-        password: form.password.value
-      };
-      try {
-        // Send POST request to backend API for login
-        const resp = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const body = await resp.json();
-        if (body.success) {
-          alert('Login successful! Redirecting...');
-          window.location.href = '/dashboard'; // Redirect after successful login
-        } else {
-          alert('Login failed: ' + (body.error || 'Invalid credentials'));
-        }
-      } catch (err) {
-        alert('Network error, please try again later.');
-      }
-    });
+    
   </script>
+  <script src="js/index.js"></script>
 </body>
 </html>
