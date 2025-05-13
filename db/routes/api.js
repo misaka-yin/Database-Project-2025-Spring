@@ -11,6 +11,16 @@ const bcrypt = require('bcryptjs');
 router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 
+// Set to WAL mode
+db.run('PRAGMA journal_mode = WAL', (err) => {
+  if (err) {
+    console.error('Failed to set WAL mode:', err.message);
+  } else {
+    console.log('SQLite is now using WAL mode');
+  }
+});
+
+
 // Serve static files
 //router.use(express.static(path.join(__dirname, '../../Frontend/public')));
 
@@ -44,28 +54,44 @@ router.post('/users/register', async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(password, 10);
-    db.run(
-      `INSERT INTO customer (full_name, phone, email, id_type, id_number)
-       VALUES (?, ?, ?, ?, ?)`,
-      [fullName, phone || null, email, idType, idNumber],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        const customerId = this.lastID;
-        db.run(
-          `INSERT INTO CGY_USER (username, password_hash, email, role, customer_id)
-           VALUES (?, ?, ?, ?, ?)`,
-          [username, hash, email, role, customerId],
-          function(err2) {
-            if (err2) return res.status(500).json({ error: err2.message });
-            res.json({ success: true, userId: this.lastID });
+
+    db.serialize(() => {
+      db.run('BEGIN IMMEDIATE TRANSACTION');
+      
+      db.run(
+        `INSERT INTO customer (full_name, phone, email, id_type, id_number)
+         VALUES (?, ?, ?, ?, ?)`,
+        [fullName, phone || null, email, idType, idNumber],
+        function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
           }
-        );
-      }
-    );
+
+          const customerId = this.lastID;
+
+          db.run(
+            `INSERT INTO CGY_USER (username, password_hash, email, role, customer_id)
+             VALUES (?, ?, ?, ?, ?)`,
+            [username, hash, email, role, customerId],
+            function(err2) {
+              if (err2) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err2.message });
+              }
+
+              db.run('COMMIT');
+              res.json({ success: true, userId: this.lastID });
+            }
+          );
+        }
+      );
+    });
   } catch (e) {
     res.status(500).json({ error: 'Hashing error.' });
   }
 });
+
 
 router.post('/users/login', (req, res) => {
   const { email, password } = req.body;
@@ -98,115 +124,139 @@ router.post('/users/login', (req, res) => {
   * Body: { email, newPassword, confirmPassword }
   */
  router.post('/users/reset', async (req, res) => {
-   const { email, newPassword, confirmPassword } = req.body;
-   if (!email || !newPassword || !confirmPassword) {
-     return res.status(400).json({ error: 'Missing required fields.' });
-   }
-   if (newPassword !== confirmPassword) {
-     return res.status(400).json({ error: 'Passwords do not match.' });
-   }
-   try {
-     const hash = await bcrypt.hash(newPassword, 10);
-     db.run(
-       `UPDATE CGY_USER SET password_hash = ? WHERE email = ?`,
-       [hash, email],
-       function(err) {
-         if (err) {
-           return res.status(500).json({ error: err.message });
-         }
-         if (this.changes === 0) {
-           return res.status(404).json({ error: 'Email not found.' });
-         }
-         res.json({ success: true, message: 'Password reset successfully.' });
-       }
-     );
-   } catch (e) {
-     res.status(500).json({ error: 'Hashing error.' });
-   }
- });
+  const { email, newPassword, confirmPassword } = req.body;
+  if (!email || !newPassword || !confirmPassword) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match.' });
+  }
+
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    db.serialize(() => {
+      db.run('BEGIN IMMEDIATE TRANSACTION');
+
+      db.run(
+        `UPDATE CGY_USER SET password_hash = ? WHERE email = ?`,
+        [hash, email],
+        function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+          if (this.changes === 0) {
+            db.run('ROLLBACK');
+            return res.status(404).json({ error: 'Email not found.' });
+          }
+
+          db.run('COMMIT');
+          res.json({ success: true, message: 'Password reset successfully.' });
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Hashing error.' });
+  }
+});
 
 
 
 
 // Register for an exhibition
-// Add this to your server.js file
 router.post('/exhibitions/:id/register', (req, res) => {
-	try {
-		const eventId = req.params.id;
-		console.log(`Attempting to register user ${LOGGED_IN_USER_ID} for exhibition ${eventId}`);
+  const eventId = req.params.id;
+  const customerId = LOGGED_IN_USER_ID;
 
-		// In a real application, use actual user authentication
-		// Here we're using the mock logged-in user
-		const customerId = LOGGED_IN_USER_ID;
+  db.serialize(() => {
+    // Start transaction
+    db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+      if (err) {
+        console.error('Failed to begin transaction:', err.message);
+        return res.status(500).json({ error: 'Database is busy. Try again.' });
+      }
 
-		// Check if the exhibition exists
-		db.get("SELECT * FROM EXHIBITION WHERE EVENT_ID = ?", [eventId], (err, exhibition) => {
-			if (err) {
-				console.error('Error checking exhibition existence:', err.message);
-				return res.status(500).json({ error: err.message });
-			}
+      // Check if the exhibition exists
+      db.get("SELECT * FROM EXHIBITION WHERE EVENT_ID = ?", [eventId], (err, exhibition) => {
+        if (err) {
+          db.run('ROLLBACK');
+          console.error('Error checking exhibition:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
 
-			if (!exhibition) {
-				return res.status(404).json({ error: 'Exhibition not found' });
-			}
+        if (!exhibition) {
+          db.run('ROLLBACK');
+          return res.status(404).json({ error: 'Exhibition not found' });
+        }
 
-			// First check if this customer is already registered for this exhibition
-			const checkSql = `
-		  SELECT * FROM CGY_CUS_EXH 
-		  WHERE EVENT_ID = ? AND CUSTOMER_ID = ?
-		`;
+        // Check for existing registration
+        const checkSql = `
+          SELECT * FROM CGY_CUS_EXH 
+          WHERE EVENT_ID = ? AND CUSTOMER_ID = ?
+        `;
 
-			db.get(checkSql, [eventId, customerId], (err, existingReg) => {
-				if (err) {
-					console.error('Error checking registration:', err.message);
-					return res.status(500).json({ error: err.message });
-				}
+        db.get(checkSql, [eventId, customerId], (err, existingReg) => {
+          if (err) {
+            db.run('ROLLBACK');
+            console.error('Error checking registration:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
 
-				// If already registered, return error
-				if (existingReg) {
-					return res.status(409).json({
-						error: 'You are already registered for this exhibition'
-					});
-				}
+          if (existingReg) {
+            db.run('ROLLBACK');
+            return res.status(409).json({
+              error: 'You are already registered for this exhibition'
+            });
+          }
 
-				// Get the next REG_ID
-				db.get("SELECT MAX(REG_ID) as max_id FROM CGY_CUS_EXH", [], (err, result) => {
-					if (err) {
-						console.error('Error getting max REG_ID:', err.message);
-						return res.status(500).json({ error: err.message });
-					}
+          // Get the next REG_ID
+          db.get("SELECT MAX(REG_ID) as max_id FROM CGY_CUS_EXH", [], (err, result) => {
+            if (err) {
+              db.run('ROLLBACK');
+              console.error('Error getting max REG_ID:', err.message);
+              return res.status(500).json({ error: err.message });
+            }
 
-					const nextRegId = (result.max_id || 0) + 1;
+            const nextRegId = (result?.max_id || 0) + 1;
 
-					// Insert new registration
-					const insertSql = `
-			  INSERT INTO CGY_CUS_EXH (EVENT_ID, CUSTOMER_ID, REG_ID)
-			  VALUES (?, ?, ?)
-			`;
+            // Insert the registration
+            const insertSql = `
+              INSERT INTO CGY_CUS_EXH (EVENT_ID, CUSTOMER_ID, REG_ID)
+              VALUES (?, ?, ?)
+            `;
 
-					db.run(insertSql, [eventId, customerId, nextRegId], function (err) {
-						if (err) {
-							console.error('Error creating registration:', err.message);
-							return res.status(500).json({ error: err.message });
-						}
+            db.run(insertSql, [eventId, customerId, nextRegId], function (err) {
+              if (err) {
+                db.run('ROLLBACK');
+                console.error('Error inserting registration:', err.message);
+                return res.status(500).json({ error: err.message });
+              }
 
-						console.log(`New registration created: Event ${eventId}, Customer ${customerId}, RegID ${nextRegId}`);
+              // Commit the transaction
+              db.run('COMMIT', err => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  console.error('Commit failed:', err.message);
+                  return res.status(500).json({ error: 'Failed to commit transaction' });
+                }
 
-						res.status(201).json({
-							message: 'Registration successful',
-							reg_id: nextRegId,
-							event_id: eventId,
-							customer_id: customerId
-						});
-					});
-				});
-			});
-		});
-	} catch (error) {
-		console.error('Unexpected error in registration endpoint:', error);
-		res.status(500).json({ error: 'Server error. Check logs for details.' });
-	}
+                console.log(`Registered user ${customerId} for exhibition ${eventId} (RegID: ${nextRegId})`);
+                res.status(201).json({
+                  message: 'Registration successful',
+                  reg_id: nextRegId,
+                  event_id: eventId,
+                  customer_id: customerId
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
 });
+
 
 
 // Get all study rooms
@@ -222,10 +272,40 @@ router.get('/studyrooms', (req, res) => {
 	});
 });
 
-router.post("/studyroom", async (req, res) => {
-    const { RM_ID, CAPACITY } = req.body;
-    await db.run("INSERT INTO CGY_STUDYRM (RM_ID, CAPACITY) VALUES (?, ?)", [RM_ID, CAPACITY]);
-    res.sendStatus(201);
+router.post("/studyroom", (req, res) => {
+  const { RM_ID, CAPACITY } = req.body;
+
+  if (!RM_ID || !CAPACITY) {
+    return res.status(400).json({ error: "Missing RM_ID or CAPACITY" });
+  }
+
+  db.serialize(() => {
+    db.run("BEGIN IMMEDIATE TRANSACTION", err => {
+      if (err) {
+        console.error("Failed to begin transaction:", err.message);
+        return res.status(500).json({ error: "Database is busy. Try again." });
+      }
+
+      db.run("INSERT INTO CGY_STUDYRM (RM_ID, CAPACITY) VALUES (?, ?)", [RM_ID, CAPACITY], function (err) {
+        if (err) {
+          db.run("ROLLBACK");
+          console.error("Insert failed:", err.message);
+          return res.status(500).json({ error: err.message });
+        }
+
+        db.run("COMMIT", err => {
+          if (err) {
+            db.run("ROLLBACK");
+            console.error("Commit failed:", err.message);
+            return res.status(500).json({ error: "Failed to commit transaction" });
+          }
+
+          console.log(`Study room ${RM_ID} created with capacity ${CAPACITY}`);
+          res.sendStatus(201);
+        });
+      });
+    });
+  });
 });
 
 
@@ -344,122 +424,141 @@ router.get('/availability', (req, res) => {
 
 // Create a new reservation
 router.post('/reservations', (req, res) => {
-	const { rm_id, rsv_start_dt, rsv_end_dt, group_size, topic_des } = req.body;
+  const { rm_id, rsv_start_dt, rsv_end_dt, group_size, topic_des } = req.body;
 
-	if (!rm_id || !rsv_start_dt || !rsv_end_dt || !group_size || !topic_des) {
-		return res.status(400).json({ error: 'Missing required fields' });
-	}
+  if (!rm_id || !rsv_start_dt || !rsv_end_dt || !group_size || !topic_des) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-	// Check if room is still available
-	const checkSql = `
-	SELECT COUNT(*) as conflict_count FROM CGY_RM_RSV
-	WHERE RM_ID = ?
-	AND (
-	  (RSV_START_DT < ? AND RSV_END_DT > ?) OR
-	  (RSV_START_DT < ? AND RSV_END_DT > ?) OR
-	  (RSV_START_DT >= ? AND RSV_END_DT <= ?)
-	)
-  `;
+  db.serialize(() => {
+    db.run('BEGIN IMMEDIATE TRANSACTION');
 
-	const checkParams = [
-		rm_id,
-		rsv_end_dt, rsv_start_dt,     // Overlaps start
-		rsv_end_dt, rsv_start_dt,     // Overlaps end
-		rsv_start_dt, rsv_end_dt      // Fully contained
-	];
+    // 1. Check if room is available
+    const checkSql = `
+      SELECT COUNT(*) as conflict_count FROM CGY_RM_RSV
+      WHERE RM_ID = ?
+      AND (
+        (RSV_START_DT < ? AND RSV_END_DT > ?) OR
+        (RSV_START_DT < ? AND RSV_END_DT > ?) OR
+        (RSV_START_DT >= ? AND RSV_END_DT <= ?)
+      )
+    `;
 
-	db.get(checkSql, checkParams, (err, result) => {
-		if (err) {
-			console.error(err.message);
-			return res.status(500).json({ error: err.message });
-		}
+    const checkParams = [
+      rm_id,
+      rsv_end_dt, rsv_start_dt,
+      rsv_end_dt, rsv_start_dt,
+      rsv_start_dt, rsv_end_dt
+    ];
 
-		if (result.conflict_count > 0) {
-			return res.status(409).json({
-				error: 'Room is no longer available for the selected time slot'
-			});
-		}
+    db.get(checkSql, checkParams, (err, result) => {
+      if (err) {
+        db.run('ROLLBACK');
+        console.error(err.message);
+        return res.status(500).json({ error: err.message });
+      }
 
-		// Get the next RSV_ID
-		db.get("SELECT MAX(RSV_ID) as max_id FROM CGY_RM_RSV", [], (err, result) => {
-			if (err) {
-				console.error(err.message);
-				return res.status(500).json({ error: err.message });
-			}
+      if (result.conflict_count > 0) {
+        db.run('ROLLBACK');
+        return res.status(409).json({
+          error: 'Room is no longer available for the selected time slot'
+        });
+      }
 
-			const nextId = (result.max_id || 0) + 1;
+      // 2. Get next RSV_ID
+      db.get("SELECT MAX(RSV_ID) as max_id FROM CGY_RM_RSV", [], (err2, row) => {
+        if (err2) {
+          db.run('ROLLBACK');
+          console.error(err2.message);
+          return res.status(500).json({ error: err2.message });
+        }
 
-			// Insert new reservation
-			const insertSql = `
-		INSERT INTO CGY_RM_RSV (RSV_ID, CUSTOMER_ID, RM_ID, RSV_START_DT, RSV_END_DT, GROUP_SIZE, TOPIC_DES)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	  `;
+        const nextId = (row?.max_id || 0) + 1;
 
-			const insertParams = [
-				nextId,
-				LOGGED_IN_USER_ID,
-				rm_id,
-				rsv_start_dt,
-				rsv_end_dt,
-				group_size,
-				topic_des
-			];
+        // 3. Insert new reservation
+        const insertSql = `
+          INSERT INTO CGY_RM_RSV (RSV_ID, CUSTOMER_ID, RM_ID, RSV_START_DT, RSV_END_DT, GROUP_SIZE, TOPIC_DES)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
 
-			db.run(insertSql, insertParams, function (err) {
-				if (err) {
-					console.error(err.message);
-					return res.status(500).json({ error: err.message });
-				}
+        const insertParams = [
+          nextId,
+          LOGGED_IN_USER_ID,
+          rm_id,
+          rsv_start_dt,
+          rsv_end_dt,
+          group_size,
+          topic_des
+        ];
 
-				res.status(201).json({
-					rsv_id: nextId,
-					customer_id: LOGGED_IN_USER_ID,
-					rm_id,
-					rsv_start_dt,
-					rsv_end_dt,
-					group_size,
-					topic_des
-				});
-			});
-		});
-	});
+        db.run(insertSql, insertParams, function (err3) {
+          if (err3) {
+            db.run('ROLLBACK');
+            console.error(err3.message);
+            return res.status(500).json({ error: err3.message });
+          }
+
+          db.run('COMMIT'); // Success: commit transaction
+
+          res.status(201).json({
+            rsv_id: nextId,
+            customer_id: LOGGED_IN_USER_ID,
+            rm_id,
+            rsv_start_dt,
+            rsv_end_dt,
+            group_size,
+            topic_des
+          });
+        });
+      });
+    });
+  });
 });
 
 // Cancel a reservation
 router.delete('/reservations/:id', (req, res) => {
-	const { id } = req.params;
+  const { id } = req.params;
 
-	// Check if reservation belongs to the logged-in user
-	const checkSql = `
-	SELECT * FROM CGY_RM_RSV
-	WHERE RSV_ID = ? AND CUSTOMER_ID = ?
-  `;
+  db.serialize(() => {
+    db.run('BEGIN IMMEDIATE TRANSACTION');
 
-	db.get(checkSql, [id, LOGGED_IN_USER_ID], (err, row) => {
-		if (err) {
-			console.error(err.message);
-			return res.status(500).json({ error: err.message });
-		}
+    // Step 1: Check reservation ownership
+    const checkSql = `
+      SELECT * FROM CGY_RM_RSV
+      WHERE RSV_ID = ? AND CUSTOMER_ID = ?
+    `;
 
-		if (!row) {
-			return res.status(404).json({
-				error: 'Reservation not found or you do not have permission to cancel it'
-			});
-		}
+    db.get(checkSql, [id, LOGGED_IN_USER_ID], (err, row) => {
+      if (err) {
+        console.error(err.message);
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
 
-		// Delete the reservation
-		const deleteSql = `DELETE FROM CGY_RM_RSV WHERE RSV_ID = ?`;
+      if (!row) {
+        db.run('ROLLBACK');
+        return res.status(404).json({
+          error: 'Reservation not found or you do not have permission to cancel it'
+        });
+      }
 
-		db.run(deleteSql, [id], function (err) {
-			if (err) {
-				console.error(err.message);
-				return res.status(500).json({ error: err.message });
-			}
+      // Step 2: Delete the reservation
+      const deleteSql = `DELETE FROM CGY_RM_RSV WHERE RSV_ID = ?`;
 
-			res.json({ message: 'Reservation cancelled successfully' });
-		});
-	});
+      db.run(deleteSql, [id], function (err) {
+        if (err) {
+          console.error(err.message);
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
+
+        db.run('COMMIT');
+        res.json({ message: 'Reservation cancelled successfully' });
+      });
+    });
+  });
 });
+
 
 // Events API routes (for events.html)
 router.get('/events', (req, res) => {
@@ -1073,6 +1172,24 @@ router.get('/admin/stats', (req, res) => {
 	  res.json(rental);
 	});
   });
+
+function logAdminAction(db, employeeId, actionType, targetTable, targetId, details = null) {
+  const sql = `
+    INSERT INTO CGY_ADMIN_HISTORY (
+      employee_id,
+      action_type,
+      target_table,
+      target_id,
+      details
+    ) VALUES (?, ?, ?, ?, ?)
+  `;
+  const params = [employeeId, actionType, targetTable, targetId, details];
+  db.run(sql, params, (err) => {
+    if (err) {
+      console.error('Failed to log admin action:', err.message);
+    }
+  });
+}
   
   router.post('/admin/reservation', async (req, res) => {
 	const { rsv_start_dt, rsv_end_dt, group_size, topic_des, rm_id, customer_id } = req.body;
@@ -1089,126 +1206,134 @@ router.get('/admin/stats', (req, res) => {
 
   // Create a new payment (admin function)
   router.post('/admin/payments', (req, res) => {
-	const { inv_id, pmt_method, pmt_date, payee_fname, payee_lname, pmt_amt } = req.body;
-	
-	// Validate required fields
-	if (!inv_id || !pmt_method || !pmt_date || !payee_fname || !payee_lname || !pmt_amt) {
-	  return res.status(400).json({ error: 'Missing required fields' });
-	}
-	
-	// Validate payment method
-	const validMethods = ['CASH', 'CREDIT', 'DEBIT', 'CHECK', 'ONLINE'];
-	if (!validMethods.includes(pmt_method)) {
-	  return res.status(400).json({ error: 'Invalid payment method' });
-	}
-	
-	// Validate payment amount
-	if (parseFloat(pmt_amt) <= 0) {
-	  return res.status(400).json({ error: 'Payment amount must be greater than 0' });
-	}
-	
-	// First check if the invoice exists
-	db.get('SELECT * FROM CGY_INVOICE WHERE INV_ID = ?', [inv_id], (err, invoice) => {
-	  if (err) {
-		console.error('Error checking invoice:', err.message);
-		return res.status(500).json({ error: err.message });
-	  }
-	  
-	  if (!invoice) {
-		return res.status(404).json({ error: 'Invoice not found' });
-	  }
-	  
-	  // Check if the payment amount exceeds the outstanding amount
-	  db.get(
-		'SELECT COALESCE(SUM(PMT_AMT), 0) as total_paid FROM CGY_PAYMENT WHERE INV_ID = ?', 
-		[inv_id], 
-		(err, result) => {
-		  if (err) {
-			console.error('Error checking existing payments:', err.message);
-			return res.status(500).json({ error: err.message });
-		  }
-		  
-		  const totalPaid = result.total_paid || 0;
-		  const outstandingAmount = invoice.INV_AMT - totalPaid;
-		  
-		  if (pmt_amt > outstandingAmount) {
-			return res.status(400).json({ 
-			  error: `Payment amount cannot exceed outstanding amount of ${outstandingAmount.toFixed(2)}` 
-			});
-		  }
-		  
-		  // Get the next PMT_ID
-		  db.get("SELECT MAX(PMT_ID) as max_id FROM CGY_PAYMENT", [], (err, result) => {
-			if (err) {
-			  console.error('Error getting max PMT_ID:', err.message);
-			  return res.status(500).json({ error: err.message });
-			}
-			
-			const nextPmtId = (result.max_id || 0) + 1;
-			
-			// Insert new payment
-			const insertSql = `
-			  INSERT INTO CGY_PAYMENT (
-				PMT_ID, 
-				PMT_METHOD, 
-				PMT_DATE, 
-				PAYEE_FNAME, 
-				PAYEE_LNAME, 
-				PMT_AMT, 
-				INV_ID
-			  ) VALUES (?, ?, ?, ?, ?, ?, ?)
-			`;
-			
-			const insertParams = [
-			  nextPmtId,
-			  pmt_method,
-			  pmt_date,
-			  payee_fname,
-			  payee_lname,
-			  pmt_amt,
-			  inv_id
-			];
-			
-			db.run(insertSql, insertParams, function(err) {
-			  if (err) {
-				console.error('Error creating payment:', err.message);
-				return res.status(500).json({ error: err.message });
-			  }
-			  
-			  console.log(`Created new payment with ID ${nextPmtId}`);
-			  res.status(201).json({
-				pmt_id: nextPmtId,
-				inv_id: inv_id,
-				pmt_method: pmt_method,
-				pmt_date: pmt_date,
-				payee_fname: payee_fname,
-				payee_lname: payee_lname,
-				pmt_amt: pmt_amt
-			  });
-			});
-		  });
-		}
-	  );
-	});
-  });
+  const { inv_id, pmt_method, pmt_date, payee_fname, payee_lname, pmt_amt } = req.body;
+  const employeeId = LOGGED_IN_USER_ID //req.session.employeeId; // <- logged-in admin ID
 
-  router.put('/admin/studyroom/:id', (req, res) => {
-	const { id } = req.params;
-	const { CAPACITY } = req.body;
-  
-	if (!CAPACITY || isNaN(CAPACITY)) {
-	  return res.status(400).json({ error: 'Invalid capacity' });
-	}
-  
-	db.run("UPDATE CGY_STUDYRM SET CAPACITY = ? WHERE RM_ID = ?", [CAPACITY, id], function (err) {
-	  if (err) {
-		console.error('DB error:', err.message);
-		return res.status(500).json({ error: err.message });
-	  }
-  
-	  res.sendStatus(200);
-	});
+  if (!inv_id || !pmt_method || !pmt_date || !payee_fname || !payee_lname || !pmt_amt) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const validMethods = ['CASH', 'CREDIT', 'DEBIT', 'CHECK', 'ONLINE'];
+  if (!validMethods.includes(pmt_method)) {
+    return res.status(400).json({ error: 'Invalid payment method' });
+  }
+
+  if (parseFloat(pmt_amt) <= 0) {
+    return res.status(400).json({ error: 'Payment amount must be greater than 0' });
+  }
+
+  db.get('SELECT * FROM CGY_INVOICE WHERE INV_ID = ?', [inv_id], (err, invoice) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    db.get(
+      'SELECT COALESCE(SUM(PMT_AMT), 0) as total_paid FROM CGY_PAYMENT WHERE INV_ID = ?', 
+      [inv_id], 
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const totalPaid = result.total_paid || 0;
+        const outstandingAmount = invoice.INV_AMT - totalPaid;
+
+        if (pmt_amt > outstandingAmount) {
+          return res.status(400).json({ 
+            error: `Payment amount cannot exceed outstanding amount of ${outstandingAmount.toFixed(2)}` 
+          });
+        }
+
+        db.get("SELECT MAX(PMT_ID) as max_id FROM CGY_PAYMENT", [], (err, result) => {
+          if (err) return res.status(500).json({ error: err.message });
+
+          const nextPmtId = (result.max_id || 0) + 1;
+
+          const insertSql = `
+            INSERT INTO CGY_PAYMENT (
+              PMT_ID, 
+              PMT_METHOD, 
+              PMT_DATE, 
+              PAYEE_FNAME, 
+              PAYEE_LNAME, 
+              PMT_AMT, 
+              INV_ID
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          const insertParams = [
+            nextPmtId,
+            pmt_method,
+            pmt_date,
+            payee_fname,
+            payee_lname,
+            pmt_amt,
+            inv_id
+          ];
+
+          db.run(insertSql, insertParams, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+
+            // 🔍 Log the admin action
+            const details = `Created payment of ${pmt_amt} for INV_ID ${inv_id} using ${pmt_method}`;
+            logAdminAction(db, employeeId, 'CREATE', 'CGY_PAYMENT', nextPmtId, details);
+
+            res.status(201).json({
+              pmt_id: nextPmtId,
+              inv_id,
+              pmt_method,
+              pmt_date,
+              payee_fname,
+              payee_lname,
+              pmt_amt
+            });
+          });
+        });
+      }
+    );
   });
+});
+
+
+router.put('/admin/studyroom/:id', (req, res) => {
+  const { id } = req.params;
+  const { CAPACITY } = req.body;
+
+  if (!CAPACITY || isNaN(CAPACITY)) {
+    return res.status(400).json({ error: 'Invalid capacity' });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+      if (err) {
+        console.error('Failed to begin transaction:', err.message);
+        return res.status(500).json({ error: 'Database is busy. Try again.' });
+      }
+
+      db.run(
+        'UPDATE CGY_STUDYRM SET CAPACITY = ? WHERE RM_ID = ?',
+        [CAPACITY, id],
+        function (err) {
+          if (err) {
+            console.error('DB error:', err.message);
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+
+          db.run('COMMIT', err => {
+            if (err) {
+              console.error('Commit failed:', err.message);
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Failed to commit transaction' });
+            }
+
+            res.sendStatus(200);
+          });
+        }
+      );
+    });
+  });
+});
   
   // Get all topics
 	router.get('/admin/topics', (req, res) => {
@@ -1219,53 +1344,106 @@ router.get('/admin/stats', (req, res) => {
 	});
   
   // Create event
-  router.post('/admin/events', (req, res) => {
-	const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
-  
-	db.run(
-	  `INSERT INTO CGY_EVENTS (EVENT_NAME, EVENT_TYPE, START_DT, END_DT, TOPIC_ID)
-	   VALUES (?, ?, ?, ?, ?)`,
-	  [event_name, event_type, start_dt, end_dt, topic_id],
-	  function (err) {
-		if (err) return res.status(500).json({ error: err.message });
-  
-		const eventId = this.lastID; // Get the auto-generated ID
-  
-		// Insert into SEMINAR or EXHIBITION
-		const subTable = event_type === 'S' ? 'SEMINAR' : 'EXHIBITION';
-		const subField = event_type === 'S' ? 'S_TYPE' : 'EXPENSES';
-		const subValue = event_type === 'S' ? 'General' : 0.0;
-  
-		db.run(
-		  `INSERT INTO ${subTable} (EVENT_ID, ${subField}) VALUES (?, ?)`,
-		  [eventId, subValue],
-		  err2 => {
-			if (err2) return res.status(500).json({ error: err2.message });
-			res.status(201).json({ event_id: eventId });
-		  }
-		);
-	  }
-	);
+router.post('/admin/events', (req, res) => {
+  const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
+
+  db.serialize(() => {
+    db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+      if (err) {
+        console.error('Failed to start transaction:', err.message);
+        return res.status(500).json({ error: 'Could not start transaction. Please retry.' });
+      }
+
+      // Step 1: Insert into CGY_EVENTS
+      db.run(
+        `INSERT INTO CGY_EVENTS (EVENT_NAME, EVENT_TYPE, START_DT, END_DT, TOPIC_ID)
+         VALUES (?, ?, ?, ?, ?)`,
+        [event_name, event_type, start_dt, end_dt, topic_id],
+        function (err) {
+          if (err) {
+            db.run('ROLLBACK');
+            console.error('Insert into CGY_EVENTS failed:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+
+          const eventId = this.lastID;
+
+          // Step 2: Insert into SEMINAR or EXHIBITION
+          const subTable = event_type === 'S' ? 'SEMINAR' : 'EXHIBITION';
+          const subField = event_type === 'S' ? 'S_TYPE' : 'EXPENSES';
+          const subValue = event_type === 'S' ? 'General' : 0.0;
+
+          db.run(
+            `INSERT INTO ${subTable} (EVENT_ID, ${subField}) VALUES (?, ?)`,
+            [eventId, subValue],
+            err2 => {
+              if (err2) {
+                db.run('ROLLBACK');
+                console.error(`Insert into ${subTable} failed:`, err2.message);
+                return res.status(500).json({ error: err2.message });
+              }
+
+              // Step 3: Commit transaction
+              db.run('COMMIT', err3 => {
+                if (err3) {
+                  db.run('ROLLBACK');
+                  console.error('Commit failed:', err3.message);
+                  return res.status(500).json({ error: 'Failed to commit transaction' });
+                }
+
+                console.log(`Event created with ID ${eventId}`);
+                res.status(201).json({ event_id: eventId });
+              });
+            }
+          );
+        }
+      );
+    });
   });
-  
+});
+
   
   
   // Update event
-  router.put('/admin/events/:id', (req, res) => {
-	const { id } = req.params;
-	const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
-  
-	db.run(
-	  `UPDATE CGY_EVENTS SET
-		EVENT_NAME = ?, EVENT_TYPE = ?, START_DT = ?, END_DT = ?, TOPIC_ID = ?
-	   WHERE EVENT_ID = ?`,
-	  [event_name, event_type, start_dt, end_dt, topic_id, id],
-	  err => {
-		if (err) return res.status(500).json({ error: err.message });
-		res.sendStatus(200);
-	  }
-	);
+router.put('/admin/events/:id', (req, res) => {
+  const { id } = req.params;
+  const { event_name, event_type, start_dt, end_dt, topic_id } = req.body;
+
+  db.serialize(() => {
+    db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+      if (err) {
+        console.error('Failed to begin transaction:', err.message);
+        return res.status(500).json({ error: 'Database is busy. Try again.' });
+      }
+
+      db.run(
+        `UPDATE CGY_EVENTS SET
+          EVENT_NAME = ?, EVENT_TYPE = ?, START_DT = ?, END_DT = ?, TOPIC_ID = ?
+         WHERE EVENT_ID = ?`,
+        [event_name, event_type, start_dt, end_dt, topic_id, id],
+        function (err) {
+          if (err) {
+            console.error('DB error during update:', err.message);
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+
+          db.run('COMMIT', err => {
+            if (err) {
+              console.error('Commit failed:', err.message);
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Failed to commit transaction' });
+            }
+
+            res.sendStatus(200);
+          });
+        }
+      );
+    });
   });
+});
+
+
 
   
   module.exports = router;
