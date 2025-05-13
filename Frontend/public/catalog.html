@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Browse - PAL Library</title>  <link rel="stylesheet" href="css/reset.css">
+  <title>Browse - PAL Library</title>
+  <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .filter-section {
@@ -13,59 +15,73 @@
       background-color: #f9f9f9;
       border-radius: 5px;
     }
+
     .filter-controls {
       display: flex;
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
     }
+
     .table-container {
       overflow-x: auto;
     }
+
     .table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 10px;
     }
-    .table th, .table td {
+
+    .table th,
+    .table td {
       border: 1px solid #ddd;
       padding: 8px;
       text-align: left;
     }
+
     .pagination {
       display: flex;
       gap: 5px;
       justify-content: center;
       margin-bottom: 20px;
     }
+
     .pagination button {
       padding: 5px 10px;
       cursor: pointer;
     }
+
     .btn--small {
       padding: 5px 8px;
       font-size: 0.85rem;
       border-radius: 4px;
     }
+
     /* Modal */
     .modal {
       display: none;
       position: fixed;
       z-index: 10;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
       overflow: auto;
     }
+
     .modal-content {
       background: #fff;
       margin: 10% auto;
       padding: 20px;
       border: 1px solid #888;
       border-radius: 8px;
-      width: 90%; max-width: 400px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
+
     .modal-close {
       float: right;
       font-size: 24px;
@@ -73,13 +89,37 @@
       cursor: pointer;
       color: #aaa;
     }
-    .modal-close:hover { color: #000; }
-    .hidden { display: none !important; }
-    .form-actions { margin-top: 1rem; display: flex; justify-content: flex-end; gap:10px; }
-    .modal label { display:block; margin:8px 0 4px; }
-    .modal input, .modal select { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; }
+
+    .modal-close:hover {
+      color: #000;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .form-actions {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .modal label {
+      display: block;
+      margin: 8px 0 4px;
+    }
+
+    .modal input,
+    .modal select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
   </style>
 </head>
+
 <body id="browse">
   <header class="header">
     <div class="header__container">
@@ -119,7 +159,13 @@
       <table id="browseTable" class="table">
         <thead>
           <tr>
-            <th>ISBN</th><th>Title</th><th>Authors</th><th>Topic</th><th>Total</th><th>Available</th><th>Action</th>
+            <th>ISBN</th>
+            <th>Title</th>
+            <th>Authors</th>
+            <th>Topic</th>
+            <th>Total</th>
+            <th>Available</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -182,8 +228,8 @@
 
       const filtered = filterBooks();
       const totalPages = Math.ceil(filtered.length / booksPerPage);
-      const start = (page-1)*booksPerPage, end = start+booksPerPage;
-      filtered.slice(start,end).forEach(b => {
+      const start = (page - 1) * booksPerPage, end = start + booksPerPage;
+      filtered.slice(start, end).forEach(b => {
         const tr = document.createElement('tr');
         const status = b.available_copies > 0 ? 'Available' : 'Unavailable';
         tr.innerHTML = `
@@ -193,71 +239,76 @@
           <td>${b.topic}</td>
           <td>${b.total_copies}</td>
           <td>${b.available_copies}</td>
-          <td><button class="btn btn--small btn--primary borrow-btn" data-isbn="${b.isbn}" ${b.available_copies<1?'disabled':''}>Borrow</button></td>
+          <td><button class="btn btn--small btn--primary borrow-btn" data-isbn="${b.isbn}" ${b.available_copies < 1 ? 'disabled' : ''}>Borrow</button></td>
         `;
         tbody.appendChild(tr);
       });
 
-      for(let i=1;i<=totalPages;i++){
-        const btn=document.createElement('button');btn.textContent=i;
-        if(i===page)btn.classList.add('active');
-        btn.onclick=()=>{currentPage=i;displayBooks(i);};
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button'); btn.textContent = i;
+        if (i === page) btn.classList.add('active');
+        btn.onclick = () => { currentPage = i; displayBooks(i); };
         pagination.appendChild(btn);
       }
       attachBorrowHandlers();
     }
 
-    function filterBooks(){
+    function filterBooks() {
       const type = document.getElementById('searchType').value;
       const term = document.getElementById('searchInput').value.toLowerCase();
       const topic = document.getElementById('topicFilter').value;
-      return books.filter(b=>{
-        const matchTerm = type==='title'?b.title.toLowerCase().includes(term):b.authors.some(a=>a.toLowerCase().includes(term));
-        const matchTopic = !topic||b.topic===topic;
-        return matchTerm&&matchTopic;
+      return books.filter(b => {
+        const matchTerm = type === 'title' ? b.title.toLowerCase().includes(term) : b.authors.some(a => a.toLowerCase().includes(term));
+        const matchTopic = !topic || b.topic === topic;
+        return matchTerm && matchTopic;
       });
     }
 
-    document.getElementById('searchType').addEventListener('change',()=>displayBooks(1));
-    document.getElementById('searchInput').addEventListener('input',()=>displayBooks(1));
-    document.getElementById('topicFilter').addEventListener('change',()=>displayBooks(1));
+    document.getElementById('searchType').addEventListener('change', () => displayBooks(1));
+    document.getElementById('searchInput').addEventListener('input', () => displayBooks(1));
+    document.getElementById('topicFilter').addEventListener('change', () => displayBooks(1));
 
     // Borrow Modal Logic
-    const borrowModal=document.getElementById('borrowModal');
-    const closeBorrow=document.getElementById('closeBorrow');
-    const cancelBorrow=document.getElementById('cancelBorrow');
-    const bookInfo=document.getElementById('bookInfo');
-    let selectedIsbn='';
+    const borrowModal = document.getElementById('borrowModal');
+    const closeBorrow = document.getElementById('closeBorrow');
+    const cancelBorrow = document.getElementById('cancelBorrow');
+    const bookInfo = document.getElementById('bookInfo');
+    let selectedIsbn = '';
 
-    function attachBorrowHandlers(){
-      document.querySelectorAll('.borrow-btn').forEach(btn=>{
-        btn.onclick=()=>{
-          selectedIsbn=btn.dataset.isbn;
-          const book=books.find(b=>b.isbn===selectedIsbn);
-          bookInfo.textContent=`${book.title} (ISBN: ${selectedIsbn})`;
-          borrowModal.style.display='block';
+    function attachBorrowHandlers() {
+      document.querySelectorAll('.borrow-btn').forEach(btn => {
+        btn.onclick = () => {
+          selectedIsbn = btn.dataset.isbn;
+          const book = books.find(b => b.isbn === selectedIsbn);
+          bookInfo.textContent = `${book.title} (ISBN: ${selectedIsbn})`;
+          borrowModal.style.display = 'block';
         };
       });
     }
 
-    closeBorrow.onclick = cancelBorrow.onclick = ()=> borrowModal.style.display='none';
-    window.onclick = e => { if(e.target===borrowModal) borrowModal.style.display='none'; };
+    closeBorrow.onclick = cancelBorrow.onclick = () => borrowModal.style.display = 'none';
+    window.onclick = e => { if (e.target === borrowModal) borrowModal.style.display = 'none'; };
 
-    document.getElementById('borrowForm').onsubmit = async e=>{
+    document.getElementById('borrowForm').onsubmit = async e => {
       e.preventDefault();
-      const days=document.getElementById('borrowDays').value;
-      const card={ number:document.getElementById('cardNumber').value,
-                   expiry:document.getElementById('cardExpiry').value,
-                   cvv:document.getElementById('cardCvv').value };
-      try{
-        const res=await fetch('/api/borrow',{ method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ isbn:selectedIsbn, days, payment:card }) });
-        if(res.ok){ alert('Borrow successful!'); borrowModal.style.display='none'; loadBooks(); }
+      const days = document.getElementById('borrowDays').value;
+      const card = {
+        number: document.getElementById('cardNumber').value,
+        expiry: document.getElementById('cardExpiry').value,
+        cvv: document.getElementById('cardCvv').value
+      };
+      try {
+        const res = await fetch('/api/borrow', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isbn: selectedIsbn, days, payment: card })
+        });
+        if (res.ok) { alert('Borrow successful!'); borrowModal.style.display = 'none'; loadBooks(); }
         else throw new Error('Failed');
-      }catch(err){ alert('Error processing borrow'); }
+      } catch (err) { alert('Error processing borrow'); }
     };
 
-    window.addEventListener('DOMContentLoaded',()=>{ loadTopics(); loadBooks(); });
+    window.addEventListener('DOMContentLoaded', () => { loadTopics(); loadBooks(); });
   </script>
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,40 +15,49 @@
       background-color: #f9f9f9;
       border-radius: 5px;
     }
+
     .filter-controls {
       display: flex;
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
     }
+
     .table-container {
       overflow-x: auto;
     }
+
     .table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 10px;
     }
-    .table th, .table td {
+
+    .table th,
+    .table td {
       border: 1px solid #ddd;
       padding: 8px;
       text-align: left;
     }
+
     .pagination {
       display: flex;
       gap: 5px;
       justify-content: center;
       margin-bottom: 20px;
     }
+
     .pagination button {
       padding: 5px 10px;
       cursor: pointer;
     }
+
     .btn--small {
       padding: 5px 8px;
       font-size: 0.85rem;
       border-radius: 4px;
     }
+
     /* Modal */
     .modal {
       display: none;
@@ -57,9 +67,10 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.4);
       overflow: auto;
     }
+
     .modal-content {
       background: #fff;
       margin: 10% auto;
@@ -68,8 +79,9 @@
       border-radius: 8px;
       width: 90%;
       max-width: 400px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
+
     .modal-close {
       float: right;
       font-size: 24px;
@@ -77,13 +89,37 @@
       cursor: pointer;
       color: #aaa;
     }
-    .modal-close:hover { color: #000; }
-    .hidden { display: none !important; }
-    .form-actions { margin-top: 1rem; display: flex; justify-content: flex-end; gap:10px; }
-    .modal label { display:block; margin:8px 0 4px; }
-    .modal input, .modal select { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; }
+
+    .modal-close:hover {
+      color: #000;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .form-actions {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .modal label {
+      display: block;
+      margin: 8px 0 4px;
+    }
+
+    .modal input,
+    .modal select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
   </style>
 </head>
+
 <body id="browse">
   <header class="header">
     <div class="header__container">
@@ -278,7 +314,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isbn: selectedIsbn, days, payment: card })
         });
-        if (res.ok) { alert('Borrow successful!'); borrowModal.style.display='none'; loadBooks(); }
+        if (res.ok) { alert('Borrow successful!'); borrowModal.style.display = 'none'; loadBooks(); }
         else throw new Error('Borrow failed');
       } catch (err) {
         alert('Error processing borrow');
@@ -288,4 +324,5 @@
     window.addEventListener('DOMContentLoaded', () => { loadTopics(); loadBooks(); });
   </script>
 </body>
+
 </html>
