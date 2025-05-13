@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database');
+const bcrypt = require('bcryptjs');
 
 //const path = require('path');
 //const app = express();
@@ -18,6 +19,81 @@ router.use(express.urlencoded({ extended: true }));
 const LOGGED_IN_USER_ID = 1;
 
 // API Routes
+
+//Index, User table, register and log in
+
+router.post('/users/register', async (req, res) => {
+  const {
+    username,
+    fullName,
+    phone,
+    idType,
+    idNumber,
+    email,
+    password,
+    confirmPassword,
+    role
+  } = req.body;
+
+  if (!username || !fullName || !email || !password || !idType || !idNumber) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match.' });
+  }
+
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    db.run(
+      `INSERT INTO customer (full_name, phone, email, id_type, id_number)
+       VALUES (?, ?, ?, ?, ?)`,
+      [fullName, phone || null, email, idType, idNumber],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const customerId = this.lastID;
+        db.run(
+          `INSERT INTO CGY_USER (username, password_hash, email, role, customer_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [username, hash, email, role, customerId],
+          function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true, userId: this.lastID });
+          }
+        );
+      }
+    );
+  } catch (e) {
+    res.status(500).json({ error: 'Hashing error.' });
+  }
+});
+
+router.post('/users/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Missing email or password.' });
+  }
+
+  db.get(
+    `SELECT * FROM CGY_USER WHERE email = ?`,
+    [email],
+    async (err, user) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!user) return res.status(401).json({ error: 'No such user.' });
+
+      const match = await bcrypt.compare(password, user.password_hash);
+      if (!match) return res.status(401).json({ error: 'Invalid credentials.' });
+
+      db.run(
+        `UPDATE CGY_USER SET last_login = datetime('now') WHERE user_id = ?`,
+        [user.user_id]
+      );
+      res.json({ success: true, role: user.role, userId: user.user_id });
+    }
+  );
+});
+
+
+
 
 // Register for an exhibition
 // Add this to your server.js file
