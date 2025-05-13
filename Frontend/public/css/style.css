@@ -1,28 +1,15 @@
-root {
+:root {
 --primary-color: #2a7ae2;
 --secondary-color: #fff;
 --bg-color: #f9f9f9;
 --text-color: #333;
---font-family: 'Open Sans', sans-serif;
+--font-family: 'Open Sans', system-ui, sans-serif;
 }
 
 body {
 font-family: var(--font-family);
 background-color: var(--bg-color);
 color: var(--text-color);
-}
-.header {
-background: var(--primary-color);
-color: var(--secondary-color);
-padding: 1rem;
-}
-.header__nav .nav__link {
-color: var(--secondary-color);
-margin-right: 1rem;
-text-decoration: none;
-}
-.nav__link--active {
-text-decoration: underline;
 }
 .section {
 padding: 2rem;
@@ -146,7 +133,7 @@ cursor: pointer;
   position: relative;
   width: 100%;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-family);
 }
 
 .header__container {
