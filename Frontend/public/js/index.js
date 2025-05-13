@@ -102,3 +102,74 @@ loginForm.addEventListener('submit', async e => {
     alert('Network error, please try again later.');
   }
 });
+
+
+// … 你现有的 login/register 代码 …
+
+// 打开重置密码弹窗
+// 打开/关闭通用函数
+function toggleModal(id, show) {
+  document.getElementById(id)
+    .classList[show ? 'add' : 'remove']('active');
+}
+
+// 登录、注册按钮
+document.getElementById('loginBtn')
+  .addEventListener('click', () => toggleModal('loginModal', true));
+document.getElementById('registerBtn')
+  .addEventListener('click', () => toggleModal('registerModal', true));
+
+// **新增这段，给“Forgot Password?”绑点击事件**
+document.getElementById('forgotPasswordLink')
+  .addEventListener('click', e => {
+    e.preventDefault();
+    toggleModal('loginModal', false);
+    toggleModal('resetModal', true);
+  });
+
+// 关闭图标 & 点击遮罩区
+document.querySelectorAll('[data-modal-close]').forEach(el => {
+  el.addEventListener('click', () =>
+    toggleModal(el.closest('.modal').id, false)
+  );
+});
+window.addEventListener('click', e => {
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.remove('active');
+  }
+});
+
+// … 剩下 register/login/reset 的 fetch 提交代码 …
+
+
+// 处理resetForm提交
+const resetForm = document.getElementById('resetForm');
+resetForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    email:           resetForm.email.value.trim(),
+    newPassword:     resetForm.newPassword.value,
+    confirmPassword: resetForm.confirmPassword.value
+  };
+  if (data.newPassword !== data.confirmPassword) {
+    return alert('Passwords do not match.');
+  }
+  try {
+    const resp = await fetch('/api/users/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const body = await resp.json();
+    if (resp.ok && body.success) {
+      alert(body.message);
+      toggleModal('resetModal', false);
+      resetForm.reset();
+    } else {
+      alert('Reset failed: ' + (body.error || 'Unknown error'));
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Network error, please try again later.');
+  }
+});
