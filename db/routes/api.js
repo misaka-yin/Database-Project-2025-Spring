@@ -336,10 +336,6 @@ router.post('/users/login', (req, res) => {
 
 // Register for an exhibition
 // Add this to your server.js file
-router.post('/exhibitions/:id/register', (req, res) => {
-	try {
-		const eventId = req.params.id;
-		console.log(`Attempting to register user ${LOGGED_IN_USER_ID} for exhibition ${eventId}`);
 
 router.post('/users/register', async (req, res) => {
   const {
