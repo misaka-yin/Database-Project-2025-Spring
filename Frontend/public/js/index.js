@@ -89,8 +89,8 @@ loginForm.addEventListener('submit', async e => {
     }
     const body = await resp.json();
     if (body.success) {
-      if (body.role === 'ADMIN') {
-        window.location.href = '/admin';
+      if (body.role === 'EMPLOYEE') {
+        window.location.href = '/admin.html';
       } else {
         window.location.href = '/browse.html';
       }

@@ -123,9 +123,9 @@
         <input type="email" id="loginEmail" name="email" required placeholder="you@example.com">
         <label for="loginPassword">Password</label>
         <input type="password" id="loginPassword" name="password" required placeholder="••••••••">
-        <div class="form-actions">
+                <div class="form-actions">
           <button type="submit" class="btn btn--primary">Login</button>
-
+          
           <a href="#" id="forgotPasswordLink" class="link">Forgot Password?</a>
         </div>
       </form>
@@ -179,7 +179,7 @@
     </div>
   </div>
 
-  <!-- Password Reset Modal -->
+    <!-- Password Reset Modal -->
   <div id="resetModal" class="modal">
     <div class="modal-content">
       <span class="modal-close" data-modal-close>&times;</span>
@@ -206,12 +206,12 @@
     document.getElementById('loginBtn').addEventListener('click', () => toggleModal('loginModal', true));
     document.getElementById('registerBtn').addEventListener('click', () => toggleModal('registerModal', true));
 
-    // Open “Forgot Password?” → show resetModal
-    document.getElementById('forgotPasswordLink')
-      .addEventListener('click', e => {
-        e.preventDefault();
-        toggleModal('resetModal', true);
-      });
+       // Open “Forgot Password?” → show resetModal
+   document.getElementById('forgotPasswordLink')
+     .addEventListener('click', e => {
+       e.preventDefault();
+       toggleModal('resetModal', true);
+     });
 
     document.querySelectorAll('[data-modal-close]').forEach(el => {
       el.addEventListener('click', () => toggleModal(el.closest('.modal').id, false));
@@ -222,7 +222,7 @@
       }
     });
 
-
+    
   </script>
   <script src="js/index.js"></script>
 </body>

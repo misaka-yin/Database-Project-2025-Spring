@@ -4,7 +4,10 @@
 const modal = document.getElementById('adminModal');
 const modalBody = document.getElementById('modalBody');
 const closeModal = document.getElementById('closeAdminModal');
-closeModal.addEventListener('click', () => modal.classList.add('hidden'));
+closeModal.addEventListener('click', () => {
+  modal.classList.remove('active');
+  // modal.classList.add('hidden'); // optional
+});
 
 // --- STATISTICS (Chart.js) ---
 async function loadStats() {
@@ -105,8 +108,47 @@ async function loadLists() {
     ]
   });
 
+  // Employees table
+  tables.employees = $('#employeesList').DataTable({
+    ajax: { url: '/api/admin/employees', dataSrc: 'data' },
+    columns: [
+      { data: 'user_id'    },
+      { data: 'username'   },
+      { data: 'role'       },
+      { data: 'status'     },
+      { data: 'full_name'  },
+      { data: 'email'      },
+      { data: 'phone'      },
+      { data: 'department' },
+      { 
+        data: null, 
+        render: r => `<button class="edit-btn" data-type="employees" data-id="${r.user_id}">Edit</button>`
+      }
+    ]
+  });
+
+  // Customers table
+  tables.customers = $('#customersList').DataTable({
+    ajax: { url: '/api/admin/customers', dataSrc: 'data' },
+    columns: [
+      { data: 'user_id'   },
+      { data: 'username'  },
+      { data: 'role'      },
+      { data: 'status'    },
+      { data: 'full_name' },
+      { data: 'email'     },
+      { data: 'phone'     },
+      { data: 'id_type'   },
+      { data: 'id_number' },
+      {
+        data: null,
+        render: r => `<button class="edit-btn" data-type="customers" data-id="${r.user_id}">Edit</button>`
+      }
+    ]
+  });
+
   // Delegate edit button clicks
-  $('#booksList, #eventsList, #roomsList, #usersList').on('click', '.edit-btn', function() {
+  $('#booksList, #eventsList, #roomsList, #usersList, #employeesList, #customersList').on('click', '.edit-btn', function() {
     const type = $(this).data('type');
     const id   = $(this).data('id');
     openEditModal(type, id);
@@ -119,7 +161,9 @@ function openEditModal(type, id) {
     books: 'isbn',
     events: 'event_id',
     rooms: 'room_id',
-    users: 'user_id'
+    users: 'user_id', 
+    employees: 'user_id', 
+    customers: 'user_id'
   }[type];
   const rowData = table.rows().data().toArray().find(r => r[dataKey] == id);
 
@@ -132,7 +176,11 @@ function openEditModal(type, id) {
   formHtml += '<button type="submit">Save</button></form>';
 
   modalBody.innerHTML = formHtml;
+  
+  // you currently only do this:
   modal.classList.remove('hidden');
+  // but you need this too:
+  modal.classList.add('active');
   //modal.classList.add('active');
 
   document.getElementById('editForm').addEventListener('submit', async e => {
@@ -149,6 +197,38 @@ function openEditModal(type, id) {
     tables[type].ajax.reload(null, false);
   }, { once: true });
 }
+
+function openAddModal(type) {
+  // type: 'employees' or 'customers'
+  const fields = {
+    employees: ['username','role','status','full_name','email','phone','department'],
+    customers: ['username','role','status','full_name','email','phone','id_type','id_number']
+  }[type];
+
+  let form = '<form id="addForm">';
+  fields.forEach(key => {
+    form += `<label>${key}: <input name="${key}"></label><br>`;
+  });
+  form += '<button type="submit">Create</button></form>';
+  
+  modalBody.innerHTML = form;
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+
+  document.getElementById('addForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = {};
+    new FormData(e.target).forEach((v,k) => payload[k] = v);
+    await fetch(`/api/admin/${type}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    modal.classList.add('hidden');
+    tables[type].ajax.reload(null, false);
+  }, { once: true });
+}
+
 
 // Payment Management functionality
 function initializePaymentManagement() {
@@ -480,6 +560,13 @@ function initializeTabs() {
     if (sidebarLinks.length > 0) sidebarLinks[0].classList.add('active');
   }
 }
+
+document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+  openAddModal('employees');
+});
+document.getElementById('addCustomerBtn').addEventListener('click', () => {
+  openAddModal('customers');
+});
 
 // Combined initialization
 document.addEventListener('DOMContentLoaded', () => {

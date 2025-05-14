@@ -30,7 +30,316 @@ const LOGGED_IN_USER_ID = 1;
 
 // API Routes
 
+//admin employee and customer
+// --- Employees list for Admin ---
+router.get('/admin/employees', (req, res) => {
+  const sql = `
+    SELECT
+      u.user_id,
+      u.username,
+      u.role,
+      u.status,
+      e.full_name,
+      e.email,
+      e.phone,
+      e.department
+    FROM CGY_USER u
+    JOIN employee e ON u.employee_id = e.employee_id
+    WHERE u.role = 'EMPLOYEE'
+  `;
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching employees:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+    // DataTables expects { data: [...] }
+    res.json({ data: rows });
+  });
+});
+
+// --- Customers list for Admin ---
+router.get('/admin/customers', (req, res) => {
+  const sql = `
+    SELECT
+      u.user_id,
+      u.username,
+      u.role,
+      u.status,
+      c.full_name,
+      c.email,
+      c.phone,
+      c.id_type,
+      c.id_number
+    FROM CGY_USER u
+    JOIN customer c ON u.customer_id = c.customer_id
+    WHERE u.role = 'CUSTOMER'
+  `;
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching customers:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ data: rows });
+  });
+});
+
+// ─── 新：创建员工 ───────────────────────────────────────────────
+router.post('/admin/employees', async (req, res) => {
+  const { username, role, status, full_name, email, phone, department } = req.body;
+  if (!username || !full_name || !email) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  // 1) 先插 employee 表
+  db.run(
+    `INSERT INTO employee (full_name, phone, email, department)
+     VALUES (?, ?, ?, ?)`,
+    [full_name, phone || null, email, department || null],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const empId = this.lastID;
+
+      // 2) 给新员工一个初始密码 “password”，生产环境请改成随机或邮件验证
+      bcrypt.hash('password', 10).then(hash => {
+        db.run(
+          `INSERT INTO CGY_USER
+             (username, password_hash, email, role, employee_id, status)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [username, hash, email, role, empId, status],
+          function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true, user_id: this.lastID });
+          }
+        );
+      });
+    }
+  );
+});
+
+// ─── 新：更新员工 ───────────────────────────────────────────────
+router.put('/admin/employees/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const { username, role, status, full_name, email, phone, department } = req.body;
+
+  // 先取出 employee_id
+  db.get(
+    `SELECT employee_id FROM CGY_USER WHERE user_id = ?`,
+    [userId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'User not found.' });
+      const empId = row.employee_id;
+
+      // 更新 CGY_USER
+      db.run(
+        `UPDATE CGY_USER
+           SET username=?, role=?, status=?
+         WHERE user_id = ?`,
+        [username, role, status, userId],
+        err2 => {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          // 更新 employee
+          db.run(
+            `UPDATE employee
+               SET full_name=?, email=?, phone=?, department=?
+             WHERE employee_id = ?`,
+            [full_name, email, phone, department, empId],
+            err3 => {
+              if (err3) return res.status(500).json({ error: err3.message });
+              res.json({ success: true });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// ─── 新：创建客户 ───────────────────────────────────────────────
+router.post('/admin/customers', async (req, res) => {
+  const { username, role, status, full_name, email, phone, id_type, id_number } = req.body;
+  if (!username || !full_name || !email || !id_type || !id_number) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  // 1) 插 customer
+  db.run(
+    `INSERT INTO customer (full_name, phone, email, id_type, id_number)
+     VALUES (?, ?, ?, ?, ?)`,
+    [full_name, phone || null, email, id_type, id_number],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const custId = this.lastID;
+
+      // 2) 初始密码
+      bcrypt.hash('password', 10).then(hash => {
+        db.run(
+          `INSERT INTO CGY_USER
+             (username, password_hash, email, role, customer_id, status)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [username, hash, email, role, custId, status],
+          function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true, user_id: this.lastID });
+          }
+        );
+      });
+    }
+  );
+});
+
+// ─── 新：更新客户 ───────────────────────────────────────────────
+router.put('/admin/customers/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const { username, role, status, full_name, email, phone, id_type, id_number } = req.body;
+
+  db.get(
+    `SELECT customer_id FROM CGY_USER WHERE user_id = ?`,
+    [userId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'User not found.' });
+      const custId = row.customer_id;
+
+      db.run(
+        `UPDATE CGY_USER
+           SET username=?, role=?, status=?
+         WHERE user_id = ?`,
+        [username, role, status, userId],
+        err2 => {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          db.run(
+            `UPDATE customer
+               SET full_name=?, email=?, phone=?, id_type=?, id_number=?
+             WHERE customer_id = ?`,
+            [full_name, email, phone, id_type, id_number, custId],
+            err3 => {
+              if (err3) return res.status(500).json({ error: err3.message });
+              res.json({ success: true });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
 //Index, User table, register and log in
+
+router.post('/users/register', async (req, res) => {
+  const {
+    username,
+    fullName,
+    phone,
+    idType,
+    idNumber,
+    email,
+    password,
+    confirmPassword,
+    role
+  } = req.body;
+
+  if (!username || !fullName || !email || !password || !idType || !idNumber) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match.' });
+  }
+
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    db.run(
+      `INSERT INTO customer (full_name, phone, email, id_type, id_number)
+       VALUES (?, ?, ?, ?, ?)`,
+      [fullName, phone || null, email, idType, idNumber],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const customerId = this.lastID;
+        db.run(
+          `INSERT INTO CGY_USER (username, password_hash, email, role, customer_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [username, hash, email, role, customerId],
+          function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true, userId: this.lastID });
+          }
+        );
+      }
+    );
+  } catch (e) {
+    res.status(500).json({ error: 'Hashing error.' });
+  }
+});
+
+router.post('/users/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Missing email or password.' });
+  }
+
+  db.get(
+    `SELECT * FROM CGY_USER WHERE email = ?`,
+    [email],
+    async (err, user) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!user) return res.status(401).json({ error: 'No such user.' });
+
+      const match = await bcrypt.compare(password, user.password_hash);
+      if (!match) return res.status(401).json({ error: 'Invalid credentials.' });
+
+      db.run(
+        `UPDATE CGY_USER SET last_login = datetime('now') WHERE user_id = ?`,
+        [user.user_id]
+      );
+      res.json({ success: true, role: user.role, userId: user.user_id });
+    }
+  );
+});
+
+// password reset
+/**
+  * POST /api/users/reset
+  * Body: { email, newPassword, confirmPassword }
+  */
+ router.post('/users/reset', async (req, res) => {
+   const { email, newPassword, confirmPassword } = req.body;
+   if (!email || !newPassword || !confirmPassword) {
+     return res.status(400).json({ error: 'Missing required fields.' });
+   }
+   if (newPassword !== confirmPassword) {
+     return res.status(400).json({ error: 'Passwords do not match.' });
+   }
+   try {
+     const hash = await bcrypt.hash(newPassword, 10);
+     db.run(
+       `UPDATE CGY_USER SET password_hash = ? WHERE email = ?`,
+       [hash, email],
+       function(err) {
+         if (err) {
+           return res.status(500).json({ error: err.message });
+         }
+         if (this.changes === 0) {
+           return res.status(404).json({ error: 'Email not found.' });
+         }
+         res.json({ success: true, message: 'Password reset successfully.' });
+       }
+     );
+   } catch (e) {
+     res.status(500).json({ error: 'Hashing error.' });
+   }
+ });
+
+
+
+
+// Register for an exhibition
+// Add this to your server.js file
+router.post('/exhibitions/:id/register', (req, res) => {
+	try {
+		const eventId = req.params.id;
+		console.log(`Attempting to register user ${LOGGED_IN_USER_ID} for exhibition ${eventId}`);
 
 router.post('/users/register', async (req, res) => {
   const {
